@@ -234,24 +234,34 @@ window.Store = (() => {
   }
 
   async function loadAll() {
-    const testar = async (col) => {
+    /* Leituras que TODO mundo pode fazer. Se falharem, de verdade
+       as regras nao foram publicadas. */
+    const testarPublico = async (col) => {
       try { return await fetchCollection(col); }
       catch (e) {
         if (/permission-denied|permission_denied/i.test(e.code || '')) semPermissao = true;
         return [];
       }
     };
+    /* Leituras restritas: negar aqui e o comportamento esperado. */
+    const testarPrivado = async (col) => {
+      try { return await fetchCollection(col); }
+      catch (e) { return []; }
+    };
 
     // progresso: o professor ve tudo; o aluno so o proprio (com filtro)
     const testarMeuProgresso = () => carregarProgresso();
 
     const [courses, episodes, students, payments, progress, setDoc] = await Promise.all([
-      testar('courses'),
-      testar('episodes'),
-      testar('students'),
-      testar('payments'),
+      testarPublico('courses'),
+      testarPublico('episodes'),
+      testarPrivado('students'),
+      testarPrivado('payments'),
       testarMeuProgresso(),
-      fb.fsMod.getDoc(ref('settings', 'app')).then(s => s.exists() ? s.data() : {}).catch(() => ({}))
+      fb.fsMod.getDoc(ref('settings', 'app')).then(s => {
+        if (!s.exists()) { semPermissao = true; return {}; }
+        return s.data();
+      }).catch(() => { semPermissao = true; return {}; })
     ]);
 
     const defaults = seed();
