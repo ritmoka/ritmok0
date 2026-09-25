@@ -1,0 +1,15 @@
+node_modules/
+package-lock.json
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+.env
+.env.local
+
+*-backup-*.json
+ritmok.data.v1.json
+
+*.log
+npm-debug.log*

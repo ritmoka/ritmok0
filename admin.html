@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel do Professor — RitmoK</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%23e50914'/><path d='M9 7l8 5-8 5z' fill='%23fff'/></svg>">
+</head>
+<body>
+
+  <!-- TELA DE SENHA -->
+  <div class="login-gate" id="gate">
+    <div class="auth-card">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1.2rem;color:var(--accent)">
+        <span style="width:26px;height:26px;display:block" id="gate-logo"></span>
+        <strong style="font-size:1.1rem;text-transform:uppercase">Painel do professor</strong>
+      </div>
+      <h1 style="font-size:1.4rem">Área restrita</h1>
+      <p class="sub">Entre com a conta do professor para gerenciar cursos, aulas e alunos.</p>
+      <div class="auth-error" id="gate-error"></div>
+      <form id="gate-form">
+        <div class="field" id="gate-email-wrap" style="display:none">
+          <label for="gate-email">E-mail do professor</label>
+          <input class="input" type="email" id="gate-email" placeholder="kennedy@ritmok.com" autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="gate-pass">Senha</label>
+          <input class="input" type="password" id="gate-pass" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" id="gate-btn">Entrar no painel</button>
+      </form>
+      <p class="hint" id="gate-hint" style="text-align:center;margin-top:1rem">
+        Senha inicial (modo local): <b>admin123</b> — troque em <b>Configurações</b> depois de entrar.
+      </p>
+      <div class="auth-foot"><a href="index.html">&larr; Voltar ao site</a></div>
+    </div>
+  </div>
+
+  <!-- PAINEL -->
+  <div class="admin-shell" id="shell" style="display:none">
+    <div class="admin-top">
+      <span style="color:var(--accent);display:block;width:24px;height:24px" id="top-logo"></span>
+      <div class="title"><span id="top-name">Painel do Professor</span><small>Gerencie cursos, aulas, alunos e pagamentos</small></div>
+      <div style="flex:1"></div>
+      <a class="btn btn-outline btn-sm" href="index.html" target="_blank" rel="noopener">Ver site</a>
+      <button class="btn btn-ghost btn-sm" id="btn-logout">Sair</button>
+    </div>
+
+    <div class="admin-main">
+      <nav class="admin-tabs" id="tabs"></nav>
+      <div id="view"></div>
+    </div>
+  </div>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

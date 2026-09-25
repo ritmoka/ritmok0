@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Início — RitmoK</title>
+  <meta name="description" content="Plataforma de videoaulas com cursos completos, capítulos e acompanhamento de progresso.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%23e50914'/><path d='M9 7l8 5-8 5z' fill='%23fff'/></svg>">
+</head>
+<body>
+
+  <header id="navbar"></header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="hero" aria-label="Destaque">
+      <div class="hero-bg" id="hero-bg"></div>
+      <div class="hero-content">
+        <span class="tag" id="hero-tag">Destaque</span>
+        <h1 id="hero-title">Carregando…</h1>
+        <div class="meta" id="hero-meta"></div>
+        <p class="desc" id="hero-desc"></p>
+        <div class="hero-actions">
+          <button class="btn btn-light" id="hero-play">
+            <span style="display:flex">&#9654;</span> Assistir agora
+          </button>
+          <button class="btn btn-ghost" id="hero-info">Mais informações</button>
+        </div>
+      </div>
+      <div class="hero-dots" id="hero-dots"></div>
+    </section>
+
+    <!-- CATÁLOGO -->
+    <section class="catalog container" id="catalog" aria-label="Catálogo de aulas"></section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h3>Plataforma</h3>
+          <ul>
+            <li><a href="index.html">Início</a></li>
+            <li><a href="index.html#catalogo">Todos os cursos</a></li>
+            <li><a href="index.html#progresso">Minha lista</a></li>
+            <li><a href="login.html">Entrar / criar conta</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Professor</h3>
+          <ul>
+            <li><a href="admin.html">Painel do professor</a></li>
+            <li><a href="admin.html#aulas">Cadastrar aulas</a></li>
+            <li><a href="admin.html#alunos">Alunos e pagamentos</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Suporte</h3>
+          <ul id="footer-contact"><li>contato@ritmok.com</li></ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span id="footer-brand">RitmoK - Prof. Kennedy</span>
+        <span>Aulas com Prof. Kennedy. Respeite os direitos autorais dos videos.</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- MODAL DE DETALHES -->
+  <div class="overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-label="Detalhes do curso">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

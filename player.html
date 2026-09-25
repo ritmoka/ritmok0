@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assistindo — RitmoK</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%23e50914'/><path d='M9 7l8 5-8 5z' fill='%23fff'/></svg>">
+</head>
+<body>
+
+  <div class="login-gate" id="carregando">
+    <div class="auth-card" style="text-align:center">
+      <h1 style="font-size:1.3rem">Carregando…</h1>
+      <p class="sub" style="margin:0">Conectando na sua conta, só um instante.</p>
+    </div>
+  </div>
+
+  <div class="player-layout" id="app" style="display:none">
+    <!-- COLUNA PRINCIPAL -->
+    <div class="player-main">
+      <div class="player-topbar">
+        <a class="btn btn-ghost btn-sm" href="index.html">&larr; Voltar</a>
+        <div>
+          <h2 id="p-course">Carregando…</h2>
+          <span class="sub" id="p-count"></span>
+        </div>
+      </div>
+
+      <div class="video-stage" id="stage"></div>
+
+      <div class="player-controls">
+        <h1 class="player-title" id="p-title"></h1>
+        <p class="player-desc" id="p-desc"></p>
+
+        <div class="bar" title="Seu progresso nesta aula"><i id="p-bar" style="width:0%"></i></div>
+
+        <div class="player-actions">
+          <button class="btn btn-outline btn-sm" id="btn-prev">Aula anterior</button>
+          <button class="btn btn-primary btn-sm" id="btn-next">Próxima aula</button>
+          <button class="btn btn-outline btn-sm" id="btn-done">Marcar como concluída</button>
+          <button class="btn btn-outline btn-sm" id="btn-again">Recomeçar do início</button>
+          <span class="badge badge-neutro" id="p-time" style="margin-left:auto">00:00</span>
+        </div>
+
+        <button class="ep-toggle-btn" id="btn-list" aria-expanded="true" aria-controls="ep-sidebar">
+          <span>&#9662;</span> <span id="btn-list-text">Ocultar lista de aulas</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- LISTA DE AULAS -->
+    <aside class="ep-sidebar" id="ep-sidebar">
+      <h3 id="p-side-title">Aulas</h3>
+      <span class="count" id="p-side-count"></span>
+      <div id="p-side-progress" style="margin-bottom:1rem"></div>
+      <ul class="ep-list" id="ep-list"></ul>
+    </aside>
+  </div>
+
+  <script src="js/firebase-config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/player.js"></script>
+</body>
+</html>

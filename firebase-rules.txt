@@ -1,0 +1,64 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* =========================================================
+       Professor: unico com permissao de escrita/admin.
+       ESTE E-MAIL PRECISA SER O MESMO QUE ESTA EM
+       js/firebase-config.js (campo ADMIN_EMAIL).
+       ========================================================= */
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == "kennedy@ritmok.com";
+    }
+
+    // O proprio dono do documento
+    function isDono(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // ---- Cursos e aulas: todo mundo pode VER, so o professor altera ----
+    match /courses/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /episodes/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- Configuracoes da plataforma ----
+    match /settings/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---- Alunos: cada um so ve o proprio; o professor ve todos ----
+    match /students/{id} {
+      allow get: if isAdmin() || isDono(id);
+      allow list: if isAdmin();
+      // Aluno pode criar o proprio cadastro e atualizar apenas nome e ultimo acesso
+      allow create: if isDono(id);
+      allow update: if isAdmin()
+        || (isDono(id) && request.resource.data.diff(resource.data)
+              .affectedKeys().hasOnly(['name', 'lastLogin']));
+      allow delete: if isAdmin();
+    }
+
+    // ---- Pagamentos: o aluno cria o proprio pedido, so o professor le/aprova ----
+    match /payments/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ---- Progresso das aulas: dono grava, professor acompanha todos ----
+    match /progress/{id} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow create, update: if isAdmin() || (request.auth != null && request.resource.data.uid == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+  }
+}
