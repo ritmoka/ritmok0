@@ -12,6 +12,10 @@
   --muted: #a1a1aa;
   --accent: #e50914;
   --accent-2: #b20710;
+  /* O vermelho da marca sobre fundo escuro fica em 3,99:1 e reprova na
+     regra de contraste (4,5:1 exigido). Este tom e o mesmo vermelho,
+     so mais claro, e so para TEXTO sobre fundo escuro. */
+  --accent-texto: #ff4d57;
   --green: #22c55e;
   --yellow: #f5c518;
   --line: #2a2a30;
@@ -409,6 +413,8 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .auth-error.show { display: block; }
 .auth-foot { text-align: center; margin-top: 1.2rem; font-size: .87rem; color: var(--muted); }
 .auth-foot a { color: #fff; text-decoration: underline; }
+/* nome da marca nas telas de login e no painel: precisa do tom claro */
+.auth-logo, .gate-logo { color: var(--accent-texto); }
 .back-home { position: fixed; top: 1.1rem; left: 1.3rem; z-index: 10; color: #fff; }
 
 .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .8rem; margin: 1rem 0 1.4rem; }

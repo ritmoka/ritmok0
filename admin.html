@@ -4,15 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel do Professor — RitmoK</title>
+  <meta name="description" content="Área restrita do professor: cursos, aulas, alunos e pagamentos.">
+  <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%23e50914'/><path d='M9 7l8 5-8 5z' fill='%23fff'/></svg>">
 </head>
 <body>
 
   <!-- TELA DE SENHA -->
-  <div class="login-gate" id="gate">
+  <main class="login-gate" id="gate">
     <div class="auth-card">
-      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1.2rem;color:var(--accent)">
+      <div class="auth-logo" style="display:flex;align-items:center;gap:.5rem;margin-bottom:1.2rem">
         <span style="width:26px;height:26px;display:block" id="gate-logo"></span>
         <strong style="font-size:1.1rem;text-transform:uppercase">Painel do professor</strong>
       </div>
@@ -35,10 +37,10 @@
       </p>
       <div class="auth-foot"><a href="index.html">&larr; Voltar ao site</a></div>
     </div>
-  </div>
+  </main>
 
   <!-- PAINEL -->
-  <div class="admin-shell" id="shell" style="display:none">
+  <div class="admin-shell" id="shell" style="display:none" role="region" aria-label="Painel do professor">
     <div class="admin-top">
       <span style="color:var(--accent);display:block;width:24px;height:24px" id="top-logo"></span>
       <div class="title"><span id="top-name">Painel do Professor</span><small>Gerencie cursos, aulas, alunos e pagamentos</small></div>
@@ -53,6 +55,7 @@
     </div>
   </div>
 
+  <script src="js/reset-guard.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/art.js"></script>

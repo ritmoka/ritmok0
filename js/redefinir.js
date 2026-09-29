@@ -24,7 +24,7 @@ function lerCodigo() {
 function tela(titulo, sub, filhos) {
   card.innerHTML = '';
   const partes = [
-    el('div', { style: { display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '1.2rem', color: 'var(--accent)' } }, [
+    el('div', { class: 'auth-logo', style: { display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '1.2rem' } }, [
       el('span', { html: UI.logo, style: { width: '26px', height: '26px', display: 'block' } }),
       el('strong', { text: (window.DEFAULT_SETTINGS && window.DEFAULT_SETTINGS.brandName) || 'RitmoK', style: { fontSize: '1.15rem', textTransform: 'uppercase' } })
     ]),

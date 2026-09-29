@@ -21,12 +21,22 @@
 
   /* ============================ BOOT ============================ */
 
+  /* Escreve DENTRO do <main>: trocar o body inteiro apagava a estrutura
+     da pagina e o leitor de tela perdia o referencia de navegacao. */
   const aviso = (titulo, texto, botoes = '') => {
-    document.body.innerHTML = `<div class="login-gate"><div class="auth-card">
+    const alvo = qs('#principal') || document.body;
+    const gate = document.createElement('div');
+    gate.className = 'login-gate';
+    gate.innerHTML = `<div class="auth-card">
       <h1>${UI.esc(titulo)}</h1>
       <p class="sub">${texto}</p>
       ${botoes}
-    </div></div>`;
+    </div>`;
+    if (alvo === document.body) { document.body.innerHTML = ''; }
+    else { alvo.innerHTML = ''; }
+    alvo.appendChild(gate);
+    // o player some, mas o <main> continua sendo a raiz da pagina
+    if (alvo !== document.body) { alvo.style.display = ''; }
   };
 
   /* tela de carregamento sem destruir o layout do player */

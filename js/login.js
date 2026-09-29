@@ -41,7 +41,7 @@
   }
 
   function logoBlock() {
-    return el('div', { style: { display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '1.2rem', color: 'var(--accent)' } }, [
+    return el('div', { class: 'auth-logo', style: { display: 'flex', alignItems: 'center', gap: '.5rem', marginBottom: '1.2rem' } }, [
       el('span', { html: UI.logo, style: { width: '26px', height: '26px', display: 'block' } }),
       el('strong', { text: brand(), style: { fontSize: '1.15rem', textTransform: 'uppercase', letterSpacing: '-.01em' } })
     ]);
