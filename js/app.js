@@ -29,8 +29,9 @@
       const v = qs('#hero-demo-box video');
       if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
       const box = qs('#hero-demo-box');
-      if (box) box.innerHTML = '';
+      if (box) { box.innerHTML = ''; box.classList.remove('is-short'); }
       hero.classList.remove('hero-demo');
+      startHeroRotation();   // volta a girar quando o aluno fecha
     }
   }
 
@@ -40,6 +41,7 @@
 
     const hero = qs('#hero');
     fecharDemo();
+    clearInterval(state.timer);   // segura o banner enquanto o video toca
     hero.classList.add('hero-demo');
     const box = qs('#hero-demo-box');
     box.innerHTML = '';
@@ -54,13 +56,31 @@
     const midia = el('div', { class: 'hero-demo-media' });
     box.appendChild(midia);
 
+    // Short do YouTube e video vertical: moldura de celular, senao
+    // o player largo deixa o video pequeninho no meio do banner
+    const vertical = /\/shorts\//i.test(url) || curso.demoVertical === true;
+
     const yt = UI.youtubeId(url);
     if (yt) {
-      midia.appendChild(el('iframe', {
+      const tela = el('div', { class: 'demo-frame' });
+      tela.appendChild(el('iframe', {
         src: UI.embedUrl(url, 0), title: 'Demonstração: ' + curso.title,
         allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
         allowfullscreen: true, loading: 'lazy'
       }));
+      if (vertical) {
+        box.classList.add('is-short');
+        midia.append(
+          el('div', { class: 'demo-curtain' }),
+          tela,
+          el('div', { class: 'demo-tagline' }, [
+            el('strong', { text: curso.title }),
+            el('span', { text: curso.tagline || 'Veja uma amostra das aulas' })
+          ])
+        );
+      } else {
+        midia.appendChild(tela);
+      }
     } else {
       const v = el('video', {
         controls: true, autoplay: true, playsinline: true, preload: 'metadata', src: url,
@@ -133,6 +153,9 @@
   function startHeroRotation() {
     if (!S.settings().heroRotation) return;
     clearInterval(state.timer);
+    // o banner nao troca de course enquanto o video de demonstracao
+    // estiver aberto: senao a demonstracao fecha sozinha na mao do aluno
+    if (qs('#hero').classList.contains('hero-demo')) return;
     state.timer = setInterval(() => {
       state.heroIndex = (state.heroIndex + 1) % featuredCourses().length;
       renderHero();

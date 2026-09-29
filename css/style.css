@@ -226,7 +226,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .hero-actions { display: flex; gap: .8rem; flex-wrap: wrap; }
 
 /* --- demonstracao dentro do banner --- */
-.hero-demo-box { position: absolute; inset: 0; z-index: 3; display: none; background: #000; }
+.hero-demo-box { position: absolute; inset: 0; z-index: 3; display: none; background: #000; overflow: hidden; }
 .hero-demo .hero-demo-box { display: block; }
 .hero-demo .hero-content,
 .hero-demo .hero-bg,
@@ -236,11 +236,47 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .hero-demo-box iframe,
 .hero-demo-media { width: 100%; height: 100%; display: block; border: 0; background: #000; }
 .hero-demo-box .stage-fallback { display: grid; place-items: center; height: 100%; }
+
+/* --- demonstracao vertical (Short do YouTube) em moldura de celular --- */
+.hero-demo-box.is-short .hero-demo-media {
+  display: flex; align-items: center; justify-content: center; gap: 3.5rem;
+  padding: 1.5rem 4.5rem;
+  background: radial-gradient(120% 120% at 50% 0%, #121a2b 0%, #05070a 65%);
+}
+.demo-curtain { display: none; }
+.demo-frame {
+  width: 100%; height: 100%; border: 0; background: #000; overflow: hidden;
+}
+.hero-demo-box.is-short .demo-frame {
+  width: auto; height: 100%; aspect-ratio: 9 / 16;
+  max-width: 38vw; border-radius: 18px; flex: 0 0 auto;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .75), 0 0 0 1px rgba(255, 255, 255, .12);
+}
+.hero-demo-box.is-short .demo-frame iframe { width: 100%; height: 100%; }
+.demo-tagline { display: none; }
+.hero-demo-box.is-short .demo-tagline {
+  display: grid; gap: .5rem; max-width: 26ch; text-align: left; flex: 0 1 auto;
+}
+.demo-tagline strong { font-size: clamp(1.2rem, 2.4vw, 1.9rem); line-height: 1.2; }
+.demo-tagline span { color: var(--muted); font-size: .98rem; }
+.hero-demo-box.is-short .demo-tagline::before {
+  content: 'Demonstração'; color: var(--brand); font-size: .78rem;
+  text-transform: uppercase; letter-spacing: .16em; font-weight: 700;
+}
+@media (max-width: 860px) {
+  /* nao cabe o texto ao lado do celular: some com ele em vez de
+     transbordar por cima da secao de baixo */
+  .hero-demo-box.is-short .demo-tagline { display: none; }
+  .hero-demo-box.is-short .hero-demo-media { padding: 3.2rem 1rem 1rem; }
+  .hero-demo-box.is-short .demo-frame { max-width: min(56vh, 86vw); }
+}
 .demo-close {
   position: absolute; top: 1rem; right: 1rem; z-index: 4;
   background: rgba(0, 0, 0, .75);
+  border: 1px solid rgba(255, 255, 255, .25);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .5);
 }
-.demo-close:hover { background: rgba(0, 0, 0, .95); }
+.demo-close:hover { background: rgba(0, 0, 0, .95); border-color: #fff; }
 .hero-dots { position: absolute; right: 4%; bottom: 8%; display: flex; gap: .5rem; z-index: 3; }
 .hero-dots button { width: 26px; height: 4px; border: 0; background: rgba(255,255,255,.3); border-radius: 4px; padding: 0; }
 .hero-dots button.active { background: var(--accent); }

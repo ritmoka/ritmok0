@@ -295,6 +295,7 @@
     };
     const feat = el('input', { type: 'checkbox' });
     const trend = el('input', { type: 'checkbox' });
+    const demoV = el('input', { type: 'checkbox' });
     const imgPrev = el('img', { style: { width: '150px', aspectRatio: '16/9', objectFit: 'cover', borderRadius: '6px', marginTop: '.4rem' } });
     const fAcesso = select({ value: 'assinatura' }, [
       { value: 'assinatura', label: 'Assinatura (pago)' },
@@ -315,7 +316,7 @@
       title.textContent = 'Novo curso';
       Object.values(f).forEach(n => { n.value = ''; });
       fAcesso.value = 'assinatura';
-      feat.checked = false; trend.checked = false;
+      feat.checked = false; trend.checked = false; demoV.checked = false;
       preview();
     }
 
@@ -335,6 +336,7 @@
         cover: f.cover.value.trim(),
         poster: f.poster.value.trim(),
         videoDemo: f.videoDemo.value.trim(),
+        demoVertical: demoV.checked,
         description: f.description.value.trim(),
         featured: feat.checked,
         trending: trend.checked
@@ -358,6 +360,11 @@
         field('Frase de destaque', f.tagline, null, true),
         field('Tipo de acesso *', fAcesso, 'Presencial: só alunos liberados pelo professor, sem mensalidade.', true),
         field('Vídeo de demonstração', f.videoDemo, 'Aparece no banner do site. Aceita MP4 ou YouTube. Deixe vazio para não mostrar o botão.', true),
+        el('div', { class: 'field full' }, [
+          el('label', { style: { display: 'flex', gap: '.5rem', alignItems: 'center', fontSize: '.9rem', textTransform: 'none', letterSpacing: 0, color: 'var(--text)', fontWeight: '400' } },
+            [demoV, document.createTextNode('A demonstração é em pé (Short / Reels / TikTok)')]),
+          el('div', { class: 'hint', text: 'Links de Short do YouTube já são detectados sozinhos. Marque aqui só quando for um vídeo vertical em link comum.' })
+        ]),
         field('Professor / instrutor', f.instructor),
         field('Categoria', f.category),
         field('Nível', f.level),
@@ -391,6 +398,7 @@
         f.level.value = c.level || ''; f.year.value = c.year || ''; f.rating.value = c.rating || '';
         f.code.value = c.code || ''; f.cover.value = c.cover || ''; f.poster.value = c.poster || '';
         f.videoDemo.value = c.videoDemo || '';
+        demoV.checked = !!c.demoVertical;
         f.description.value = c.description || '';
         feat.checked = !!c.featured; trend.checked = !!c.trending;
         preview();
