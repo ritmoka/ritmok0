@@ -798,14 +798,15 @@ window.Store = (() => {
     }
 
     // ---- aluno pagante ----
-    if (tipo === 'presencial') {
+    const st = statusOf(student);
+    if (st.key !== 'ativo') {
       return {
-        ok: false, motivo: 'soPresencial', upgrade: false, curso: c,
-        reason: 'Este curso é exclusivo para alunos presenciais.'
+        ok: false, motivo: 'inativo', curso: c,
+        reason: 'Seu acesso não está ativo. Renove sua assinatura para assistir.',
+        upgrade: tipo === 'presencial'
       };
     }
-    const st = statusOf(student);
-    if (st.key !== 'ativo') return { ok: false, motivo: 'inativo', reason: 'Seu acesso não está ativo. Renove sua assinatura para assistir.', upgrade: true };
+    // Pagante acessa tudo, inclusive as aulas do curso presencial.
     return { ok: true, motivo: 'assinatura', reason: '', upgrade: false };
   }
 

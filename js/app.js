@@ -451,7 +451,12 @@
       el('span', { text: `${eps.length} aulas` }),
       el('span', { text: UI.timecode(S.totalDuration(c.id)) }),
       S.tipoDoCurso(c) === 'presencial'
-        ? el('span', { class: 'badge badge-ativo', style: { background: 'rgba(34,197,94,.15)', color: '#4ade80' }, text: 'Presencial' })
+        ? el('span', {
+            class: 'badge badge-ativo',
+            style: { background: 'rgba(34,197,94,.15)', color: '#4ade80' },
+            text: 'Presencial · incluído na assinatura',
+            title: 'Aulas da turma presencial, liberadas para quem paga a assinatura'
+          })
         : el('span', { class: 'badge badge-neutro', text: 'Assinatura' })
     );
     body.appendChild(meta);
