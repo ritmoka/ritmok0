@@ -78,10 +78,11 @@ async function principal() {
   }
 
   // Confere se o link ainda vale antes de pedir a senha nova
-  let email = '';
+  let email = '', operation = '';
   try {
     const info = await authMod.checkActionCode(auth, codigo);
     email = (info.data && info.data.email) || '';
+    operation = info.operation || '';
   } catch (e) {
     const expirou = /expired/i.test(e.code || '');
     tela(
@@ -92,6 +93,47 @@ async function principal() {
       el('a', { class: 'btn btn-primary btn-block', href: 'login.html', text: 'Pedir um novo link' })
     );
     return;
+  }
+
+  /* O link é de recuperação de senha? Se for outra coisa (verificar
+     e-mail, por exemplo), não é para mostrar o campo de senha. */
+  if (operation && authMod.ActionCodeOperation &&
+      operation !== authMod.ActionCodeOperation.PASSWORD_RESET) {
+    tela('Link de outro tipo', 'Este link não é de troca de senha. Volte ao início e peça um novo.',
+      el('a', { class: 'btn btn-primary btn-block', href: 'login.html', text: 'Voltar para entrar' }));
+    return;
+  }
+
+  /* O nome da funcao de trocar a senha ja mudou no SDK do Firebase
+     (confirmPasswordResetCode -> confirmPasswordReset). Usamos o que
+     existe nesta versao e, se nenhuma aparecer, vamos pela API REST,
+     que e exatamente a mesma coisa por tras. */
+  async function gravarSenha(nova) {
+    if (typeof authMod.confirmPasswordReset === 'function') {
+      await authMod.confirmPasswordReset(auth, codigo, nova);
+      return;
+    }
+    if (typeof authMod.confirmPasswordResetCode === 'function') {
+      await authMod.confirmPasswordResetCode(auth, codigo, nova);
+      return;
+    }
+    // plano C: chamada direta na API do Firebase
+    const resp = await fetch(
+      'https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key='
+      + window.FIREBASE_CONFIG.apiKey,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ oobCode: codigo, newPassword: nova })
+      }
+    );
+    if (!resp.ok) {
+      const j = await resp.json().catch(() => ({}));
+      const m = (j.error && j.error.message) || 'falha';
+      const err = new Error(m);
+      err.code = 'auth/' + String(m).toLowerCase();
+      throw err;
+    }
   }
 
   /* ---- formulario da nova senha ---- */
@@ -130,7 +172,7 @@ async function principal() {
       salvar.disabled = true;
       salvar.textContent = 'Salvando…';
       try {
-        await authMod.confirmPasswordResetCode(auth, codigo, a);
+        await gravarSenha(a);
         tela('Senha trocada!', 'Agora é só entrar com a senha nova.',
           el('div', {}, [
             el('div', { class: 'success-ico' }, [el('span', { html: UI.icons.check })]),
@@ -141,13 +183,23 @@ async function principal() {
       } catch (e2) {
         salvar.disabled = false;
         salvar.textContent = 'Salvar nova senha';
+        const cod = e2.code || '';
+        let msg;
+        if (/password-does-not-meet-requirements|weak-password/i.test(cod)) {
+          msg = 'Esta senha é muito fraca. Use pelo menos 6 caracteres, misturando letras e números.';
+        } else if (/too-many-requests/i.test(cod)) {
+          msg = 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.';
+        } else if (/network|unavailable|timeout|fetch|failed/i.test(cod)) {
+          msg = 'Sem conexão com a internet. Verifique e tente de novo.';
+        } else if (/expired|invalid/i.test(cod)) {
+          msg = 'Este link já foi usado ou expirou. Peça um novo na tela de login.';
+        } else {
+          msg = 'Não foi possível trocar a senha. Tente novamente.';
+        }
         erro.innerHTML = '';
-        erro.appendChild(aviso(
-          /expired|invalid/i.test(e2.code || '')
-            ? 'Este link já foi usado ou expirou. Peça um novo na tela de login.'
-            : 'Não foi possível trocar a senha. Tente novamente.'
-        ));
+        erro.appendChild(aviso(msg));
         erro.style.display = '';
+        p1.focus();
       }
     }
   }, [
