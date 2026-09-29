@@ -25,10 +25,19 @@ window.Store = (() => {
 
   /* ---------- planos ---------- */
   const PLANS = [
-    { id: 'mensal', name: 'Mensal', price: 49.9, days: 30, note: 'Cancele quando quiser' },
-    { id: 'semestral', name: 'Semestral', price: 249.9, days: 180, note: 'R$ 41,65/mês · economize 17%' },
-    { id: 'vitalicio', name: 'Vitalício', price: 497, days: 36500, note: 'Pagamento único · acesso para sempre' }
+    { id: 'mensal', name: 'Mensal', price: 49.9, days: 30, periodo: '/mês', note: 'Cancele quando quiser' },
+    { id: 'semestral', name: 'Semestral', price: 249.9, days: 180, periodo: '/semestre', note: 'R$ 41,65/mês · economize 17%' },
+    { id: 'anual', name: 'Anual', price: 397, days: 365, periodo: '/ano', note: 'R$ 33,08/mês · economize 33%' }
   ];
+
+  /** Rotulo do periodo, calculado a partir da duracao quando nao informado */
+  function periodoDe(p) {
+    if (p.periodo) return p.periodo;
+    const d = Number(p.days) || 0;
+    if (d <= 31) return '/mês';
+    if (d <= 200) return '/semestre';
+    return '/ano';
+  }
 
   const PAY_METHODS = [
     { id: 'pix', name: 'Pix', icon: '⚡' },
@@ -595,10 +604,19 @@ window.Store = (() => {
         : { key: 'aguardando', label: 'Aguardando aprovação do professor' };
     }
 
-    if (student.planId === 'vitalicio' && student.expiresAt) return { key: 'ativo', label: 'Vitalício' };
     if (!student.expiresAt) return { key: 'pendente', label: 'Aguardando pagamento' };
     if (UI.isExpired(student.expiresAt)) return { key: 'vencido', label: 'Acesso vencido em ' + UI.dateBR(student.expiresAt) };
-    return { key: 'ativo', label: 'Ativo até ' + UI.dateBR(student.expiresAt) };
+
+    // o nome vem do plano salvo no painel (pode ter sido renomeado)
+    const plano = planoDe(student.planId);
+    return { key: 'ativo', label: (plano ? plano + ' até ' : 'Ativo até ') + UI.dateBR(student.expiresAt) };
+  }
+
+  /** O plano de um aluno, usando a lista ATUAL (editável no painel) */
+  function planoDe(id) {
+    const lista = read().plans && read().plans.length ? read().plans : PLANS;
+    const p = lista.find(x => x.id === id);
+    return p ? p.name : '';
   }
 
   /** O tipo de acesso de um curso: 'assinatura' (padrão) ou 'presencial' */
@@ -673,6 +691,9 @@ window.Store = (() => {
   /* =========================================================
      CONSULTAS
      ========================================================= */
+  /** A lista de planos que o painel pode editar (nunca a fixa do codigo) */
+  const planos = () => (read().plans && read().plans.length ? read().plans : PLANS);
+
   const settings = () => read().settings;
   const allCourses = () => read().courses;
   const allEpisodes = () => read().episodes;
@@ -1078,6 +1099,43 @@ window.Store = (() => {
     return { novos: novos, atualizados: atualizados };
   }
 
+  /* Le numero aceitando virgula (padrão brasileiro) e ponto */
+  function numeroBR(valor, padrao = 0) {
+    if (typeof valor === 'number' && !isNaN(valor)) return valor;
+    let s = String(valor === null || valor === undefined ? '' : valor).trim();
+    if (!s) return padrao;
+    s = s.replace(/\s/g, '').replace(/[^\d.,-]/g, '');
+    if (s.indexOf(',') > -1 && s.indexOf('.') > -1) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else if (s.indexOf(',') > -1) {
+      s = s.replace(',', '.');
+    }
+    const n = parseFloat(s);
+    return isNaN(n) ? padrao : n;
+  }
+
+  /** Troca o plano antigo 'vitalicio' pelo 'anual' em alunos e pagamentos */
+  function migrarPlanos() {
+    const padrao = PLANS.slice();
+    save(d => {
+      if (!d.plans || !d.plans.length) d.plans = padrao;
+      d.plans.forEach(p => {
+        if (p.id === 'vitalicio') {
+          p.id = 'anual';
+          p.name = 'Anual';
+          p.days = 365;
+          if (!p.price) p.price = 397;
+          if (/vital/i.test(p.note || '')) p.note = 'R$ 33,08/mês · economize 33%';
+        }
+      });
+      d.students.forEach(s => { if (s.planId === 'vitalicio') s.planId = 'anual'; });
+      d.payments.forEach(p => {
+        if (p.planId === 'vitalicio') { p.planId = 'anual'; p.planName = 'Anual'; }
+      });
+    });
+    return planos();
+  }
+
   /* =========================================================
      BACKUP
      ========================================================= */
@@ -1223,7 +1281,8 @@ window.Store = (() => {
     progressFor, saveProgress, markCompleted, continueWatching, lastCourse, myCourses,
     signUp, loginStudent, createPayment, latestPayment, approvePayment, rejectPayment,
     setStudent, extendStudent, deleteStudent, hasCourseCode, grantCourseCode, changePassword,
-    aprovarPresencial, virarPagante, acessoAoCurso, tipoDoCurso, restaurarExemplo, bancoVazio: () => FIREBASE_ON && !!(cache && !cache.courses.length)
+    aprovarPresencial, virarPagante, acessoAoCurso, tipoDoCurso, restaurarExemplo,
+    planos, planoDe, periodoDe, migrarPlanos, numeroBR, bancoVazio: () => FIREBASE_ON && !!(cache && !cache.courses.length)
   };
 })();
 

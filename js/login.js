@@ -234,10 +234,10 @@
     const nome = (st && st.name || '').split(' ')[0];
 
     const grid = el('div', { class: 'plans' });
-    S.PLANS.forEach(p => {
+    S.planos().forEach(p => {
       const card = el('div', { class: 'plan' + (p.id === 'mensal' ? ' active' : ''), role: 'button', tabindex: '0' }, [
         el('div', { class: 'pname', text: p.name }),
-        el('div', { class: 'pprice' }, [document.createTextNode(money(p.price)), el('small', { text: p.id === 'mensal' ? ' /mês' : ' /total' })]),
+        el('div', { class: 'pprice' }, [document.createTextNode(money(p.price)), el('small', { text: S.periodoDe(p) })]),
         el('div', { class: 'pnote', text: p.note })
       ]);
       const pick = () => {
@@ -311,10 +311,10 @@
     const student = S.currentStudent();
     if (student && student.presencial) { viewUpgrade(new URLSearchParams(location.search).get('upgrade') || ''); return; }
     const grid = el('div', { class: 'plans' });
-    S.PLANS.forEach(p => {
+    S.planos().forEach(p => {
       const card = el('div', { class: 'plan' + (p.id === selectedPlan ? ' active' : ''), role: 'button', tabindex: '0' }, [
         el('div', { class: 'pname', text: p.name }),
-        el('div', { class: 'pprice' }, [document.createTextNode(money(p.price)), el('small', { text: p.id === 'mensal' ? ' /mês' : ' /total' })]),
+        el('div', { class: 'pprice' }, [document.createTextNode(money(p.price)), el('small', { text: S.periodoDe(p) })]),
         el('div', { class: 'pnote', text: p.note })
       ]);
       const pick = () => {
@@ -349,7 +349,7 @@
 
   function viewPay() {
     step = 'pay';
-    const plan = S.PLANS.find(p => p.id === selectedPlan);
+    const plan = S.planos().find(p => p.id === selectedPlan);
 
     const methods = el('div', { class: 'pay-methods' });
     S.PAY_METHODS.forEach(m => {

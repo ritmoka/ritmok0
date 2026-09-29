@@ -279,8 +279,8 @@
       instructor: input({ placeholder: 'Nome do professor' }),
       category: input({ placeholder: 'Exatas, Tecnologia, Idiomas…' }),
       level: input({ placeholder: 'Iniciante, Intermediário…' }),
-      year: input({ type: 'number', placeholder: '2026' }),
-      rating: input({ type: 'number', step: '0.1', min: '0', max: '5', placeholder: '4.8' }),
+      year: input({ type: 'text', placeholder: '2026' }),
+      rating: input({ type: 'text', placeholder: '4.8' }),
       code: input({ placeholder: 'Deixe vazio = acesso livre' }),
       cover: input({ placeholder: 'URL da imagem 16:9 (opcional)' }),
       poster: input({ placeholder: 'URL do pôster 2:3 (opcional)' }),
@@ -322,8 +322,8 @@
         instructor: f.instructor.value.trim(),
         category: f.category.value.trim() || 'Geral',
         level: f.level.value.trim(),
-        year: Number(f.year.value) || new Date().getFullYear(),
-        rating: Number(f.rating.value) || 4.5,
+        year: S.numeroBR(f.year.value, new Date().getFullYear()),
+        rating: Math.min(5, Math.max(0, S.numeroBR(f.rating.value, 4.5))),
         code: f.code.value.trim(),
         cover: f.cover.value.trim(),
         poster: f.poster.value.trim(),
@@ -565,7 +565,7 @@
     list.appendChild(chips);
 
     const add = box('Cadastrar aluno', 'Turmas presenciais, cortesias ou testes', []);
-    const af = { name: input({ placeholder: 'Nome' }), email: input({ type: 'email', placeholder: 'email@dominio.com' }), password: input({ placeholder: 'senha inicial' }), plan: select({}, S.PLANS.map(p => ({ value: p.id, label: p.name }))), days: input({ type: 'number', value: '30' }), obs: input({ placeholder: 'Ex.: Violão — Terça 19h' }), presencial: el('input', { type: 'checkbox' }) };
+    const af = { name: input({ placeholder: 'Nome' }), email: input({ type: 'email', placeholder: 'email@dominio.com' }), password: input({ placeholder: 'senha inicial' }), plan: select({}, S.planos().map(p => ({ value: p.id, label: p.name }))), days: input({ type: 'number', value: '30' }), obs: input({ placeholder: 'Ex.: Violão — Terça 19h' }), presencial: el('input', { type: 'checkbox' }) };
     const avisoPres = el('div', { class: 'lock-note', style: { display: 'none' }, html: UI.icons.lock + ' <span>Aluno <b>presencial</b>: não paga nada e acessa apenas os cursos marcados como presencial.</span>' });
     af.presencial.addEventListener('change', () => { avisoPres.style.display = af.presencial.checked ? '' : 'none'; });
     add.appendChild(el('div', { class: 'form-grid' }, [
@@ -667,7 +667,7 @@
     function editStudent(s) {
       const name = input({ value: s.name || '' });
       const pass = input({ placeholder: 'nova senha (opcional)' });
-      const plan = select({ value: s.planId }, S.PLANS.map(p => ({ value: p.id, label: p.name })));
+      const plan = select({ value: s.planId }, S.planos().map(p => ({ value: p.id, label: p.name })));
       const exp = input({ type: 'date', value: (s.expiresAt || '').slice(0, 10) });
       const dlg = el('div', { class: 'overlay open' }, el('div', { class: 'modal', style: { maxWidth: '520px' } }, [
         el('div', { class: 'modal-body', style: { paddingTop: '1.6rem' } }, [
@@ -827,28 +827,43 @@
     host.appendChild(pBox);
 
     // planos
-    const plansBox = box('Planos e preços', 'Edite valores e duração de acesso', []);
+    const plansBox = box('Planos e preços', 'Estes valores são os que os alunos veem na hora de assinar', []);
     const pt = el('table', { class: 'data' });
     pt.appendChild(el('thead', {}, el('tr', {}, ['Plano', 'Preço (R$)', 'Dias de acesso', ''].map(h => el('th', { text: h })))));
     const ptb = el('tbody');
-    S.PLANS.forEach(p => {
-      const price = input({ type: 'number', step: '0.01', value: p.price, style: { maxWidth: '130px' } });
+    S.planos().forEach(p => {
+      const price = input({ type: 'text', value: String(p.price).replace('.', ','), style: { maxWidth: '130px' } });
       const days = input({ type: 'number', value: p.days, style: { maxWidth: '130px' } });
       ptb.appendChild(el('tr', {}, [
         el('td', {}, el('strong', { text: p.name })),
         el('td', {}, price),
         el('td', {}, days),
         el('td', {}, el('button', { class: 'mini', text: 'Salvar', onclick: () => {
+          const novoPreco = S.numeroBR(price.value, p.price);
+          const novosDias = S.numeroBR(days.value, p.days);
+          if (novoPreco <= 0) { toast('O preço precisa ser maior que zero.', ''); return; }
+          if (novosDias <= 0) { toast('Os dias de acesso precisam ser maiores que zero.', ''); return; }
           S.save(d => {
             const t = d.plans.find(x => x.id === p.id);
-            if (t) { t.price = Number(price.value) || 0; t.days = Number(days.value) || 30; }
+            if (t) { t.price = novoPreco; t.days = novosDias; }
+            // quem ja comprou precisa acompanhar a mudanca de duracao
+            d.students.forEach(s => {
+              if (s.planId === p.id && s.expiresAt && !s.presencial) {
+                const base = new Date(s.expiresAt);
+                const diasBase = (d.plans.find(x => x.id === p.id) || {}).days || 30;
+                const dif = novosDias - diasBase;
+                if (dif !== 0) s.expiresAt = UI.addDays(s.expiresAt, dif);
+              }
+            });
           });
-          toast('Plano atualizado.', 'ok');
+          toast('Plano "' + p.name + '" atualizado para R$ ' + novoPreco.toFixed(2).replace('.', ',') + '.', 'ok');
+          render();
         } }))
       ]));
     });
     pt.appendChild(ptb);
     plansBox.appendChild(pt);
+    plansBox.appendChild(el('p', { style: { color: 'var(--muted)', fontSize: '.82rem', margin: '.8rem 0 0' }, text: 'Aceita vírgula ou ponto: escreva 49,90 ou 49.90. Ao mudar os dias, os acessos já pagos são ajustados na mesma proporção.' }));
     host.appendChild(plansBox);
 
     // backup

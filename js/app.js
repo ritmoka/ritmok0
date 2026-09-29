@@ -434,10 +434,10 @@
           document.createTextNode(perm.reason)
         ]),
         perm.upgrade
-          ? el('div', { class: 'stat-row', style: { margin: '0 0 1.2rem' } }, S.PLANS.map(p =>
+          ? el('div', { class: 'stat-row', style: { margin: '0 0 1.2rem' } }, S.planos().map(p =>
             el('div', { class: 'plan' + (p.id === 'mensal' ? ' active' : ''), role: 'button', tabindex: '0', onclick: () => irParaUpgrade(course) }, [
               el('div', { class: 'pname', text: p.name }),
-              el('div', { class: 'pprice' }, [document.createTextNode(p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })), el('small', { text: p.id === 'mensal' ? '/mês' : '' })]),
+              el('div', { class: 'pprice' }, [document.createTextNode(p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })), el('small', { text: S.periodoDe(p) })]),
               el('div', { class: 'pnote', text: p.id === 'mensal' ? 'Cancele quando quiser' : 'Acesso total aos cursos online' })
             ])))
           : null,
