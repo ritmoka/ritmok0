@@ -25,7 +25,8 @@
     const card = qs('#card');
     card.className = 'auth-card' + (wide ? ' wide' : '');
     card.innerHTML = '';
-    children.forEach(c => card.appendChild(c));
+    (Array.isArray(children) ? children : [children])
+      .forEach(c => { if (c === null || c === undefined || c === false) return; card.appendChild(c); });
   }
 
   function errorBox(message = '') {
@@ -92,6 +93,12 @@
         return;
       }
       const status = S.statusOf(r.student);
+
+      // aluno presencial: vai para a tela de status, nao para os planos
+      if (r.student.presencial) {
+        viewAguardando();
+        return;
+      }
       if (status.key !== 'ativo') {
         lastEmail = r.student.email;
         toast('Entre na sua conta e conclua a assinatura.', '');
@@ -130,12 +137,42 @@
     const pass = input({ type: 'password', id: 'su-pass', placeholder: 'mínimo 4 caracteres', autocomplete: 'new-password' });
     const pass2 = input({ type: 'password', id: 'su-pass2', placeholder: 'repita a senha', autocomplete: 'new-password' });
 
+    const turma = input({ type: 'text', id: 'su-turma', placeholder: 'Ex.: Violão — Terça 19h' });
+
+    // alternancia: assinatura (padrao) ou presencial
+    let presencial = false;
+    const boxPresencial = el('div', { style: { display: 'none' } },
+      [field('Turma / aula', turma, 'Ajuda o professor a identificar sua turma.')]);
+    const avisoPresencial = el('div', {
+      class: 'lock-note', style: { display: 'none' },
+      html: UI.icons.lock + ' <span>Você <b>não paga nada</b>. Sua solicitação vai ao professor, que libera o acesso presencial quando aprovar.</span>'
+    });
+
+    const bAssin = el('button', { class: 'active', type: 'button', text: 'Assinatura online' });
+    const bPres = el('button', { type: 'button', text: 'Sou aluno presencial' });
+    const abas = el('div', { class: 'auth-tabs' }, [bAssin, bPres]);
+
+    const trocar = p => {
+      presencial = p;
+      bAssin.classList.toggle('active', !p);
+      bPres.classList.toggle('active', p);
+      boxPresencial.style.display = p ? '' : 'none';
+      avisoPresencial.style.display = p ? '' : 'none';
+      const b = qs('#btn-criar');
+      if (b) b.textContent = p ? 'Solicitar acesso presencial' : 'Continuar para os planos';
+    };
+    bAssin.onclick = () => trocar(false);
+    bPres.onclick = () => trocar(true);
+
     const form = el('form', { onsubmit: e => { e.preventDefault(); submit(); } }, [
       errorBox(),
+      abas,
+      avisoPresencial,
       field('Nome', name),
       field('E-mail', email),
       field('Senha', pass),
       field('Confirmar senha', pass2),
+      boxPresencial,
       el('button', { class: 'btn btn-primary btn-block', type: 'submit', id: 'btn-criar', text: 'Continuar para os planos' })
     ]);
 
@@ -144,13 +181,21 @@
       const btn = qs('#btn-criar');
       if (btn) { btn.disabled = true; btn.textContent = 'Criando conta…'; }
       try {
-        const st = await S.signUp({ name: name.value, email: email.value, password: pass.value, planId: selectedPlan });
+        const st = await S.signUp({
+          name: name.value, email: email.value, password: pass.value,
+          planId: selectedPlan, presencial: presencial, obs: turma.value.trim()
+        });
         lastEmail = st ? st.email : email.value;
-        toast('Conta criada! Escolha seu plano.', 'ok');
-        viewPlans(true);
+        if (presencial) {
+          toast('Solicitação enviada! O professor vai liberar seu acesso.', 'ok');
+          viewAguardando();
+        } else {
+          toast('Conta criada! Escolha seu plano.', 'ok');
+          viewPlans(true);
+        }
       } catch (err) {
         showError(friendly(err));
-        if (btn) { btn.disabled = false; btn.textContent = 'Continuar para os planos'; }
+        if (btn) { btn.disabled = false; btn.textContent = presencial ? 'Solicitar acesso presencial' : 'Continuar para os planos'; }
       }
     }
 
@@ -167,7 +212,7 @@
     shell([
       logoBlock(),
       el('h1', { text: 'Criar conta' }),
-      el('p', { class: 'sub', text: 'Leva menos de um minuto. Depois é só escolher o plano.' }),
+      el('p', { class: 'sub', text: 'Escolha como quer estudar com o Prof. Kennedy.' }),
       form,
       el('div', { class: 'auth-foot', style: { marginTop: '1.4rem' } }, [
         'Já tem conta? ',
@@ -180,10 +225,91 @@
     setTimeout(() => name.focus(), 60);
   }
 
-  /* ============================ PLANOS ============================ */
+  /* ============================ UPGRADE ============================ */
+
+  function viewUpgrade(cursoId) {
+    step = 'upgrade';
+    const st = S.currentStudent();
+    const curso = S.course(cursoId);
+    const nome = (st && st.name || '').split(' ')[0];
+
+    const grid = el('div', { class: 'plans' });
+    S.PLANS.forEach(p => {
+      const card = el('div', { class: 'plan' + (p.id === 'mensal' ? ' active' : ''), role: 'button', tabindex: '0' }, [
+        el('div', { class: 'pname', text: p.name }),
+        el('div', { class: 'pprice' }, [document.createTextNode(money(p.price)), el('small', { text: p.id === 'mensal' ? ' /mês' : ' /total' })]),
+        el('div', { class: 'pnote', text: p.note })
+      ]);
+      const pick = () => {
+        selectedPlan = p.id;
+        UI.qsa('.plan', grid).forEach(x => x.classList.remove('active'));
+        card.classList.add('active');
+      };
+      card.addEventListener('click', pick);
+      card.addEventListener('keydown', e => { if (e.key === 'Enter') pick(); });
+      grid.appendChild(card);
+    });
+
+    shell([
+      logoBlock(),
+      el('h1', { text: 'Faça o upgrade' }),
+      el('p', { class: 'sub' }, [
+        'Oi, ' + (nome || 'tudo bem?') + '! Seu acesso presencial continua normal. ',
+        'Para assistir a ', el('strong', { text: curso ? curso.title : 'este curso' }),
+        ' e aos demais cursos online, assine um dos planos abaixo.'
+      ]),
+      grid,
+      el('div', { class: 'steps' }, [
+        el('li', { text: 'Escolha o plano e pague (Pix, cartão ou boleto).' }),
+        el('li', { text: 'O professor aprova e sua conta vira de acesso ilimitado.' }),
+        el('li', { text: 'Você mantém o acesso presencial também — nada se perde.' })
+      ]),
+      el('button', {
+        class: 'btn btn-primary btn-block', text: 'Fazer upgrade agora',
+        onclick: () => {
+          const pay = S.createPayment({ email: st.email, planId: selectedPlan, method: 'pix' });
+          lastPayment = pay;
+          lastEmail = st.email;
+          toast('Pedido enviado! O professor vai aprovar.', 'ok');
+          viewPending();
+        }
+      }),
+      el('button', { class: 'btn btn-outline btn-block', style: { marginTop: '.6rem' }, text: 'Agora não', onclick: () => location.href = 'index.html' })
+    ], true);
+  }
+
+  /* ============================ PRESENCIAL ============================ */
+
+  function viewAguardando() {
+    step = 'aguardando';
+    const st = S.currentStudent();
+    const status = S.statusOf(st);
+    const aprovado = status.key === 'presencial';
+    const primeiro = (st && st.name || '').split(' ')[0];
+
+    shell([
+      el('div', { class: 'success-ico', html: aprovado ? UI.icons.check : UI.icons.lock }),
+      el('h1', { text: aprovado ? 'Acesso liberado!' : 'Solicitação enviada', style: { textAlign: 'center' } }),
+      el('p', { class: 'sub', style: { textAlign: 'center' } },
+        aprovado
+          ? 'Tudo certo, ' + primeiro + '! Seu acesso presencial está ativo e não precisa de mensalidade.'
+          : 'O professor precisa aprovar sua solicitação. Você não paga nada — o acesso é liberado por ele.'),
+      st && st.obs ? el('div', { style: { textAlign: 'center', color: 'var(--muted)', fontSize: '.85rem', marginBottom: '1rem' }, text: 'Turma: ' + st.obs }) : null,
+      aprovado
+        ? el('button', { class: 'btn btn-primary btn-block', text: 'Ver meus cursos', onclick: () => location.href = 'index.html' })
+        : el('button', { class: 'btn btn-primary btn-block', text: 'Atualizar situação', onclick: () => location.reload() }),
+      !aprovado
+        ? el('button', { class: 'btn btn-outline btn-block', style: { marginTop: '.6rem' }, text: 'Sair', onclick: async () => { await S.logout(); location.href = 'index.html'; } })
+        : null
+    ]);
+  }
+
+  /* ============================ PLANOS / UPGRADE ============================ */
 
   function viewPlans(isNew = false) {
     step = 'plans';
+    const student = S.currentStudent();
+    if (student && student.presencial) { viewUpgrade(new URLSearchParams(location.search).get('upgrade') || ''); return; }
     const grid = el('div', { class: 'plans' });
     S.PLANS.forEach(p => {
       const card = el('div', { class: 'plan' + (p.id === selectedPlan ? ' active' : ''), role: 'button', tabindex: '0' }, [
@@ -201,7 +327,6 @@
       grid.appendChild(card);
     });
 
-    const student = S.currentStudent();
     const st = S.statusOf(student);
 
     shell([
@@ -355,6 +480,13 @@
     await S.sessaoPronta();
     document.title = 'Entrar — ' + brand();
 
+    // veio do paywall: aluno presencial quer assinar
+    const upgrade = new URLSearchParams(location.search).get('upgrade');
+    if (upgrade && S.currentStudent() && S.currentStudent().presencial) {
+      viewUpgrade(upgrade);
+      return;
+    }
+
     const session = S.session();
     if (session && session.role === 'admin') {
       location.href = 'admin.html';
@@ -362,6 +494,7 @@
     }
     if (session && session.role === 'student') {
       const st = S.currentStudent();
+      if (st && st.presencial) { viewAguardando(); return; }
       if (st && S.statusOf(st).key === 'ativo') { viewActive(); return; }
       if (st) { lastEmail = st.email; viewPlans(); return; }
       S.logout();

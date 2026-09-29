@@ -49,7 +49,7 @@
     await S.sessaoPronta();
 
     const gate = S.canWatch();
-    if (!gate.ok) {
+    if (!gate.ok && !S.session()) {
       aviso('Acesso restrito', UI.esc(gate.reason), `
         <a class="btn btn-primary btn-block" href="login.html?next=${next}">Entrar ou assinar</a>
         <a class="btn btn-outline btn-block" style="margin-top:.6rem" href="index.html">Voltar ao catálogo</a>`);
@@ -60,6 +60,29 @@
     const ep = S.episode(state.episodeId);
     if (!ep) {
       aviso('Aula não encontrada', 'O link pode estar errado ou a aula foi removida.',
+        '<a class="btn btn-primary btn-block" href="index.html">Voltar ao catálogo</a>');
+      return;
+    }
+
+    // acesso especifico deste curso (assinatura x presencial)
+    const perm = S.acessoAoCurso(ep.courseId);
+    if (!perm.ok) {
+      const course = perm.curso || S.course(ep.courseId);
+      if (perm.motivo === 'semlogin') {
+        aviso('Acesso restrito', UI.esc(perm.reason), `
+          <a class="btn btn-primary btn-block" href="login.html?next=${next}">Entrar ou assinar</a>
+          <a class="btn btn-outline btn-block" style="margin-top:.6rem" href="index.html">Voltar ao catálogo</a>`);
+        return;
+      }
+      if (perm.upgrade) {
+        aviso('Faça o upgrade', UI.esc(perm.reason), `
+          <button class="btn btn-primary btn-block" id="btn-upgrade">Ver planos e assinar</button>
+          <a class="btn btn-outline btn-block" style="margin-top:.6rem" href="index.html">Voltar ao catálogo</a>`);
+        const b = qs('#btn-upgrade');
+        if (b) b.onclick = () => location.href = 'login.html?upgrade=' + encodeURIComponent(course.id);
+        return;
+      }
+      aviso('Acesso não liberado', UI.esc(perm.reason),
         '<a class="btn btn-primary btn-block" href="index.html">Voltar ao catálogo</a>');
       return;
     }

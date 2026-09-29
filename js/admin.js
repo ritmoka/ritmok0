@@ -206,6 +206,31 @@
     const courses = S.allCourses();
     const list = box('Cursos cadastrados', `${courses.length} curso(s) — marque um como "Destaque" para ele abrir a home`, []);
 
+    list.appendChild(el('div', { style: { display: 'flex', gap: '.6rem', marginBottom: '1rem', flexWrap: 'wrap' } }, [
+      el('button', {
+        class: 'mini', text: '↺ Repor aulas que faltam',
+        title: 'Recria apenas as aulas de exemplo apagadas. Não mexe no que você criou.',
+        onclick: () => {
+          if (!confirmBox('Recriar as aulas de exemplo que estão faltando? Nada que você criou será alterado.')) return;
+          const r = S.restaurarExemplo(true);
+          toast(r.novos ? (r.novos + ' item(ns) restaurado(s).') : 'Nada faltava — tudo já está lá.', 'ok');
+          render();
+        }
+      }),
+      el('button', {
+        class: 'mini danger', text: '⚠ Restaurar conteúdo do zero',
+        title: 'Apaga os cursos e aulas atuais, voltando ao conteúdo original',
+        onclick: () => {
+          if (!confirmBox('Isso apaga TODOS os cursos e aulas, incluindo os seus. Continuar?')) return;
+          if (!confirmBox('Tem certeza? As aulas que você montou serão perdidas.')) return;
+          S.save(d => { d.courses = []; d.episodes = []; });
+          S.restaurarExemplo(true);
+          toast('Conteúdo restaurado.', 'ok');
+          render();
+        }
+      })
+    ]));
+
     if (!courses.length) {
       list.appendChild(emptyState('Nenhum curso ainda. Use o formulário acima para criar o primeiro.'));
     } else {
@@ -264,6 +289,10 @@
     const feat = el('input', { type: 'checkbox' });
     const trend = el('input', { type: 'checkbox' });
     const imgPrev = el('img', { style: { width: '150px', aspectRatio: '16/9', objectFit: 'cover', borderRadius: '6px', marginTop: '.4rem' } });
+    const fAcesso = select({ value: 'assinatura' }, [
+      { value: 'assinatura', label: 'Assinatura (pago)' },
+      { value: 'presencial', label: 'Presencial (turma)' }
+    ]);
 
     const preview = () => {
       const seed = f.title.value || 'novo';
@@ -278,6 +307,7 @@
       editing.id = null;
       title.textContent = 'Novo curso';
       Object.values(f).forEach(n => { n.value = ''; });
+      fAcesso.value = 'assinatura';
       feat.checked = false; trend.checked = false;
       preview();
     }
@@ -288,6 +318,7 @@
       const data = {
         title: t,
         tagline: f.tagline.value.trim(),
+        acesso: fAcesso.value,
         instructor: f.instructor.value.trim(),
         category: f.category.value.trim() || 'Geral',
         level: f.level.value.trim(),
@@ -317,6 +348,7 @@
       el('div', { class: 'form-grid' }, [
         field('Título do curso *', f.title, null, true),
         field('Frase de destaque', f.tagline, null, true),
+        field('Tipo de acesso *', fAcesso, 'Presencial: só alunos liberados pelo professor, sem mensalidade.', true),
         field('Professor / instrutor', f.instructor),
         field('Categoria', f.category),
         field('Nível', f.level),
@@ -345,6 +377,7 @@
         editing.id = c.id;
         title.textContent = 'Editando: ' + c.title;
         f.title.value = c.title || ''; f.tagline.value = c.tagline || '';
+        fAcesso.value = c.acesso === 'presencial' ? 'presencial' : 'assinatura';
         f.instructor.value = c.instructor || ''; f.category.value = c.category || '';
         f.level.value = c.level || ''; f.year.value = c.year || ''; f.rating.value = c.rating || '';
         f.code.value = c.code || ''; f.cover.value = c.cover || ''; f.poster.value = c.poster || '';
@@ -508,34 +541,93 @@
   /* ============================ ALUNOS ============================ */
 
   function viewAlunos(host) {
-    const list = box('Alunos', 'Cadastre manualmente, altere o plano ou libere acessos', []);
+    const filtro = { tipo: 'todos' };
+    const list = box('Alunos', 'Alunos presenciais são liberados por você, sem mensalidade', []);
     const table = el('table', { class: 'data' });
     const stu = S.allStudents();
 
-    const add = box('Cadastrar aluno', 'Útil para turmas presenciais, cortesias ou testes', []);
-    const af = { name: input({ placeholder: 'Nome' }), email: input({ type: 'email', placeholder: 'email@dominio.com' }), password: input({ placeholder: 'senha inicial' }), plan: select({}, S.PLANS.map(p => ({ value: p.id, label: p.name }))), days: input({ type: 'number', value: '30' }) };
+    // filtros
+    const chips = el('div', { class: 'chip-list' });
+    [['todos', 'Todos'], ['presencial', 'Presenciais'], ['pagante', 'Pagantes'], ['pendente', 'Aguardando']]
+      .forEach(([v, l]) => {
+        const n = stu.filter(s => {
+          if (v === 'presencial') return s.presencial;
+          if (v === 'pagante') return !s.presencial && S.statusOf(s).key === 'ativo';
+          if (v === 'pendente') return !s.presencial && S.statusOf(s).key !== 'ativo';
+          return true;
+        }).length;
+        chips.appendChild(el('div', {
+          class: 'chip' + (filtro.tipo === v ? ' active' : ''),
+          text: `${l} (${n})`,
+          onclick: () => { filtro.tipo = v; render(); }
+        }));
+      });
+    list.appendChild(chips);
+
+    const add = box('Cadastrar aluno', 'Turmas presenciais, cortesias ou testes', []);
+    const af = { name: input({ placeholder: 'Nome' }), email: input({ type: 'email', placeholder: 'email@dominio.com' }), password: input({ placeholder: 'senha inicial' }), plan: select({}, S.PLANS.map(p => ({ value: p.id, label: p.name }))), days: input({ type: 'number', value: '30' }), obs: input({ placeholder: 'Ex.: Violão — Terça 19h' }), presencial: el('input', { type: 'checkbox' }) };
+    const avisoPres = el('div', { class: 'lock-note', style: { display: 'none' }, html: UI.icons.lock + ' <span>Aluno <b>presencial</b>: não paga nada e acessa apenas os cursos marcados como presencial.</span>' });
+    af.presencial.addEventListener('change', () => { avisoPres.style.display = af.presencial.checked ? '' : 'none'; });
     add.appendChild(el('div', { class: 'form-grid' }, [
       field('Nome', af.name), field('E-mail', af.email), field('Senha', af.password),
-      field('Plano', af.plan), field('Dias de acesso', af.days),
+      field('Plano', af.plan), field('Dias de acesso', af.days), field('Turma', af.obs),
+      el('div', { class: 'field' }, [
+        el('label', { text: 'Tipo de aluno' }),
+        el('label', { style: { display: 'flex', gap: '.5rem', alignItems: 'center', fontSize: '.9rem', textTransform: 'none', letterSpacing: 0, color: 'var(--text)', fontWeight: '400' } },
+          [af.presencial, document.createTextNode('Aluno presencial (sem mensalidade)')]),
+        avisoPres
+      ]),
       el('div', { class: 'field', style: { display: 'flex', alignItems: 'flex-end' } },
-        el('button', { class: 'btn btn-primary', text: 'Cadastrar aluno', onclick: () => {
+        el('button', { class: 'btn btn-primary', text: 'Cadastrar aluno', onclick: async () => {
           try {
-            S.signUp({ name: af.name.value, email: af.email.value, password: af.password.value || '1234', planId: af.plan.value });
+            await S.signUp({
+              name: af.name.value, email: af.email.value,
+              password: af.password.value || '1234', planId: af.plan.value,
+              presencial: af.presencial.checked
+            });
             const st = S.student(af.email.value);
-            S.setStudent(st.id, { expiresAt: UI.addDays(new Date().toISOString(), Number(af.days.value) || 30), status: 'ativo' });
+            if (af.presencial.checked) {
+              S.aprovarPresencial(st.id, true, af.obs.value.trim());
+            } else {
+              S.setStudent(st.id, { expiresAt: UI.addDays(new Date().toISOString(), Number(af.days.value) || 30), status: 'ativo' });
+            }
             toast('Aluno cadastrado com acesso liberado.', 'ok');
             render();
           } catch (err) { toast(err.message, ''); }
         } })
       )
     ]));
-    host.appendChild(add);
+    // No modo nuvem o aluno cria a propria conta (o Firebase nao permite
+    // criar usuario pelo painel sem trocar a sessao do professor).
+    if (S.isCloud()) {
+      const boxConvite = box('Convidar aluno presencial', 'Como funciona o acesso presencial', [
+        el('ol', { class: 'steps', style: { margin: '0 0 .6rem' } }, [
+          el('li', { text: 'Peça para o aluno abrir o link abaixo e clicar em "Criar conta".' }),
+          el('li', { text: 'Ele escolhe a aba "Sou aluno presencial" e se cadastra de graça.' }),
+          el('li', { text: 'O cadastro dele aparece aqui na aba Alunos, com o botão "✔ Aprovar acesso".' }),
+          el('li', { text: 'Depois de aprovado, ele acessa os cursos presencial e vê o paywall nos pagos.' })
+        ]),
+        el('div', { class: 'code-box', text: (location.origin || '') + '/login.html' }),
+        el('p', { style: { color: 'var(--muted)', fontSize: '.82rem', marginTop: '.6rem' } }, [
+          'Obs.: no modo local (sem Firebase) você também pode cadastrar alunos direto por aqui.'
+        ])
+      ]);
+      host.appendChild(boxConvite);
+    } else {
+      host.appendChild(add);
+    }
 
-    table.appendChild(el('thead', {}, el('tr', {}, ['Aluno', 'Plano', 'Situação', 'Vence em', 'Último acesso', 'Ações'].map(h => el('th', { text: h })))));
+    table.appendChild(el('thead', {}, el('tr', {}, ['Aluno', 'Tipo', 'Situação', 'Vence em', 'Último acesso', 'Ações'].map(h => el('th', { text: h })))));
     const tb = el('tbody');
-    if (!stu.length) tb.appendChild(el('tr', {}, el('td', { colspan: '6' }, emptyState('Nenhum aluno cadastrado.'))));
+    const visiveis = stu.filter(s => {
+      if (filtro.tipo === 'presencial') return s.presencial;
+      if (filtro.tipo === 'pagante') return !s.presencial && S.statusOf(s).key === 'ativo';
+      if (filtro.tipo === 'pendente') return !s.presencial && S.statusOf(s).key !== 'ativo';
+      return true;
+    });
+    if (!visiveis.length) tb.appendChild(el('tr', {}, el('td', { colspan: '6' }, emptyState('Nenhum aluno nesta categoria.'))));
 
-    stu.forEach(s => {
+    visiveis.forEach(s => {
       tb.appendChild(el('tr', {}, [
         el('td', {}, [
           el('div', { style: { display: 'flex', gap: '.6rem', alignItems: 'center' } }, [
@@ -543,12 +635,22 @@
             el('div', {}, [el('strong', { text: s.name || '—' }), el('br'), el('small', { style: { color: 'var(--muted)' }, text: s.email })])
           ])
         ]),
-        el('td', { text: (S.PLANS.find(p => p.id === s.planId) || {}).name || '—' }),
+        el('td', {}, el('span', {
+          class: 'badge ' + (s.presencial ? 'badge-ativo' : 'badge-neutro'),
+          text: s.presencial ? 'Presencial' : 'Pagante'
+        })),
         el('td', {}, statusBadge(s)),
-        el('td', { text: s.planId === 'vitalicio' ? 'Vitalício' : UI.dateBR(s.expiresAt) }),
+        el('td', { text: s.presencial ? (s.aprovado ? 'liberado' : '—') : (s.planId === 'vitalicio' ? 'Vitalício' : UI.dateBR(s.expiresAt)) }),
         el('td', { text: s.lastLogin ? UI.dateBR(s.lastLogin) : 'nunca' }),
         el('td', {}, el('div', { class: 'row-actions' }, [
-          el('button', { class: 'mini ok', text: '+30 dias', onclick: () => { S.extendStudent(s.id, 30); toast('30 dias adicionados.', 'ok'); render(); } }),
+          s.presencial
+            ? (s.aprovado
+              ? el('button', { class: 'mini', text: 'Revogar acesso', onclick: () => { S.aprovarPresencial(s.id, false); toast('Acesso revogado.'); render(); } })
+              : el('button', { class: 'mini ok', text: '✔ Aprovar acesso', onclick: () => { S.aprovarPresencial(s.id, true, s.obs); toast('Acesso presencial liberado!', 'ok'); render(); } }))
+            : el('button', { class: 'mini ok', text: '+30 dias', onclick: () => { S.extendStudent(s.id, 30); toast('30 dias adicionados.', 'ok'); render(); } }),
+          s.presencial
+            ? el('button', { class: 'mini', text: '→ Virar pagante', title: 'Libera a assinatura online e remove o acesso presencial', onclick: () => { if (!confirmBox('Transformar ' + s.name + ' em aluno pagante? O acesso presencial será removido.')) return; S.virarPagante(s.id, s.planId); toast('Agora é aluno pagante.', 'ok'); render(); } })
+            : el('button', { class: 'mini', text: '→ Presencial', title: 'Mover para aluno presencial (sem mensalidade)', onclick: () => { S.aprovarPresencial(s.id, true, ''); toast('Movido para presencial.', 'ok'); render(); } }),
           el('button', { class: 'mini', text: s.blocked ? 'Desbloquear' : 'Bloquear', onclick: () => { S.setStudent(s.id, { blocked: !s.blocked }); render(); } }),
           el('button', { class: 'mini', text: 'Editar', onclick: () => editStudent(s) }),
           el('button', { class: 'mini danger', text: 'Excluir', onclick: () => {

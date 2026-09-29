@@ -86,6 +86,13 @@
       el('h3', { text: c.title }),
       el('small', { text: `${eps.length} aulas · ${(c.rating || 4.5).toFixed(1)} ★${c.level ? ' · ' + c.level : ''}` })
     );
+    if (S.tipoDoCurso(c) === 'presencial') {
+      info.appendChild(el('span', {
+        class: 'badge badge-ativo',
+        style: { background: 'rgba(34,197,94,.15)', color: '#4ade80', marginTop: '.35rem', display: 'inline-block' },
+        text: 'Presencial'
+      }));
+    }
     card.appendChild(info);
 
     if (pct > 0) {
@@ -280,13 +287,33 @@
       el('span', { text: String(c.year || '') }),
       el('span', { class: 'badge badge-neutro', text: c.level || 'Aula' }),
       el('span', { text: `${eps.length} aulas` }),
-      el('span', { text: UI.timecode(S.totalDuration(c.id)) })
+      el('span', { text: UI.timecode(S.totalDuration(c.id)) }),
+      S.tipoDoCurso(c) === 'presencial'
+        ? el('span', { class: 'badge badge-ativo', style: { background: 'rgba(34,197,94,.15)', color: '#4ade80' }, text: 'Presencial' })
+        : el('span', { class: 'badge badge-neutro', text: 'Assinatura' })
     );
     body.appendChild(meta);
 
+    const perm = S.acessoAoCurso(c.id);
+    if (!perm.ok && perm.motivo === 'semlogin') {
+      body.appendChild(el('div', { class: 'lock-note', html: UI.icons.lock + ' <span>Entre para ver as aulas deste curso.</span>' }));
+    } else if (!perm.ok) {
+      body.appendChild(el('div', { class: 'lock-note', html: UI.icons.lock + ' <span>' + UI.esc(perm.reason) + '</span>' }));
+    }
+
     const actions = el('div', { style: { display: 'flex', gap: '.6rem', flexWrap: 'wrap', marginBottom: '1.4rem' } });
+    const podeVer = perm.ok;
     actions.append(
-      el('button', { class: 'btn btn-primary', text: eps.length ? '▶  Começar a assistir' : 'Sem aulas ainda', onclick: () => playFirstEpisode(c) })
+      el('button', {
+        class: 'btn btn-primary',
+        text: podeVer ? (eps.length ? '▶  Começar a assistir' : 'Sem aulas ainda') : (perm.upgrade ? '🔒  Ver planos' : '🔒  Solicitar acesso'),
+        onclick: () => {
+          if (podeVer) { playFirstEpisode(c); return; }
+          if (perm.motivo === 'semlogin') { closeModal(); location.href = 'login.html'; return; }
+          if (perm.upgrade) { closeModal(); irParaUpgrade(c); return; }
+          closeModal(); irParaUpgrade(c);
+        }
+      })
     );
     if (eps.length) {
       actions.appendChild(el('button', {
@@ -369,25 +396,75 @@
   }
 
   function goPlayer(episodeId) {
-    const gate = S.canWatch();
-    if (!gate.ok) {
-      toast(gate.reason, '');
+    const ep = S.episode(episodeId);
+    if (!ep) { toast('Aula não encontrada.'); return; }
+
+    const perm = S.acessoAoCurso(ep.courseId);
+
+    if (!perm.ok && perm.motivo === 'semlogin') {
+      toast(perm.reason, '');
       setTimeout(() => location.href = 'login.html?next=' + encodeURIComponent('player.html?id=' + episodeId), 900);
       return;
     }
-    const ep = S.episode(episodeId);
-    if (ep && ep.courseId && !S.hasCourseCode(ep.courseId)) {
+    if (!perm.ok) {
+      abrirPaywall(perm);
+      return;
+    }
+    if (!S.hasCourseCode(ep.courseId)) {
       const c = S.course(ep.courseId);
       const answer = prompt(`"${c.title}" é um curso com código de acesso.\n\nDigite o código fornecido pelo professor:`);
       if (answer === null) return;
-      if (!S.grantCourseCode(ep.courseId, answer)) {
-        toast('Código incorreto.', '');
-        return;
-      }
+      if (!S.grantCourseCode(ep.courseId, answer)) { toast('Código incorreto.', ''); return; }
       toast('Acesso liberado!', 'ok');
     }
     location.href = 'player.html?id=' + encodeURIComponent(episodeId);
   }
+
+  /* ---------- paywall: pediu upgrade / acesso ---------- */
+  function abrirPaywall(perm) {
+    const c = perm.curso || null;
+    const course = c ? c : null;
+    const box = el('div', { class: 'modal', style: { maxWidth: '520px' } }, [
+      el('div', { class: 'modal-body', style: { paddingTop: '2.2rem' } }, [
+        el('div', { class: 'success-ico', style: { background: perm.upgrade ? 'rgba(229,9,20,.15)' : 'rgba(245,197,24,.15)', color: perm.upgrade ? 'var(--accent)' : 'var(--yellow)' }, html: UI.icons.lock }),
+        el('h2', { text: perm.upgrade ? 'Faça o upgrade' : 'Acesso não liberado', style: { fontSize: '1.5rem', textAlign: 'center' } }),
+        el('p', { style: { textAlign: 'center', color: 'var(--muted)', lineHeight: '1.6', marginBottom: '1.2rem' } }, [
+          course ? el('strong', { text: course.title }) : null,
+          course ? el('br') : null,
+          document.createTextNode(perm.reason)
+        ]),
+        perm.upgrade
+          ? el('div', { class: 'stat-row', style: { margin: '0 0 1.2rem' } }, S.PLANS.map(p =>
+            el('div', { class: 'plan' + (p.id === 'mensal' ? ' active' : ''), role: 'button', tabindex: '0', onclick: () => irParaUpgrade(course) }, [
+              el('div', { class: 'pname', text: p.name }),
+              el('div', { class: 'pprice' }, [document.createTextNode(p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })), el('small', { text: p.id === 'mensal' ? '/mês' : '' })]),
+              el('div', { class: 'pnote', text: p.id === 'mensal' ? 'Cancele quando quiser' : 'Acesso total aos cursos online' })
+            ])))
+          : null,
+        el('button', {
+          class: 'btn btn-primary btn-block',
+          text: perm.upgrade ? 'Quero fazer o upgrade' : 'Entendi',
+          onclick: () => { fecharPaywall(); if (perm.upgrade) irParaUpgrade(course); }
+        }),
+        el('button', { class: 'btn btn-outline btn-block', style: { marginTop: '.6rem' }, text: 'Voltar ao catálogo', onclick: fecharPaywall })
+      ])
+    ]);
+
+    const overlay = el('div', { class: 'overlay open' }, box);
+    overlay.addEventListener('click', e => { if (e.target === overlay) fecharPaywall(); });
+    const fechar = () => { overlay.remove(); document.body.style.overflow = ''; };
+    window.__fecharPaywall = fechar;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+  }
+
+  const fecharPaywall = () => { if (window.__fecharPaywall) window.__fecharPaywall(); };
+
+  const irParaUpgrade = course => {
+    fecharPaywall();
+    const q = course ? '?upgrade=' + encodeURIComponent(course.id) : '#planos';
+    location.href = 'login.html' + q;
+  };
 
   /* ============================ OVERLAYS ============================ */
 

@@ -39,11 +39,20 @@ service cloud.firestore {
     match /students/{id} {
       allow get: if isAdmin() || isDono(id);
       allow list: if isAdmin();
-      // Aluno pode criar o proprio cadastro e atualizar apenas nome e ultimo acesso
-      allow create: if isDono(id);
+
+      // O ALUNO cria o proprio cadastro, mas NUNCA com acesso:
+      // aprovado precisa ser false, expiresAt vazio e nao bloqueado.
+      // Sem isso, qualquer um se aprovaria sozinho pelo navegador.
+      allow create: if isDono(id)
+        && request.resource.data.aprovado == false
+        && request.resource.data.expiresAt == null
+        && request.resource.data.blocked == false;
+
+      // Depois de criado, o aluno so mexe no nome e no ultimo acesso.
       allow update: if isAdmin()
         || (isDono(id) && request.resource.data.diff(resource.data)
               .affectedKeys().hasOnly(['name', 'lastLogin']));
+
       allow delete: if isAdmin();
     }
 

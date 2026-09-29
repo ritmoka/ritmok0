@@ -398,8 +398,15 @@ window.Store = (() => {
         if (i >= 0) cache.students[i] = doc; else cache.students.push(doc);
         return doc;
       }
-      // ainda nao tem cadastro: criamos agora (permitido pelas regras)
-      const novo = makeStudent(user.uid, user.displayName || user.email, user.email, 'mensal');
+      // ainda nao tem cadastro: criamos agora (permitido pelas regras).
+      // Se o cadastro acabou de ser feito pela tela de registro, usamos
+      // os dados de la (incluindo "presencial"), senao o aluno perderia.
+      const p = cadastroPendente;
+      cadastroPendente = null;
+      const novo = p
+        ? makeStudent(user.uid, p.name, p.mail, p.planId, p.presencial)
+        : makeStudent(user.uid, user.displayName || user.email, user.email, 'mensal');
+      if (p && p.obs) novo.obs = p.obs;
       save(d => { if (!d.students.find(x => x.id === user.uid)) d.students.push(novo); });
       return novo;
     } catch (e) {
@@ -407,6 +414,9 @@ window.Store = (() => {
       return null;
     }
   }
+
+  /* Dados do cadastro que esta em andamento (evita perder a flag presencial) */
+  let cadastroPendente = null;
 
   /* Documentos que ja existem na nuvem (a nuvem e a verdade) */
   const existentes = new Set();
@@ -575,10 +585,60 @@ window.Store = (() => {
   function statusOf(student) {
     if (!student) return { key: 'pendente', label: 'Sem assinatura' };
     if (student.blocked) return { key: 'vencido', label: 'Bloqueado' };
+
+    // Aluno presencial: liberado pelo professor, sem mensalidade
+    if (student.presencial) {
+      return student.aprovado
+        ? { key: 'presencial', label: 'Presencial · liberado' }
+        : { key: 'aguardando', label: 'Aguardando aprovação do professor' };
+    }
+
     if (student.planId === 'vitalicio' && student.expiresAt) return { key: 'ativo', label: 'Vitalício' };
     if (!student.expiresAt) return { key: 'pendente', label: 'Aguardando pagamento' };
     if (UI.isExpired(student.expiresAt)) return { key: 'vencido', label: 'Acesso vencido em ' + UI.dateBR(student.expiresAt) };
     return { key: 'ativo', label: 'Ativo até ' + UI.dateBR(student.expiresAt) };
+  }
+
+  /** O tipo de acesso de um curso: 'assinatura' (padrão) ou 'presencial' */
+  const tipoDoCurso = c => (c && c.acesso === 'presencial' ? 'presencial' : 'assinatura');
+
+  /** O aluno pode assistir a ESTE curso? Devolve o motivo quando não pode. */
+  function acessoAoCurso(courseId, student = currentStudent()) {
+    const c = course(courseId);
+    if (!c) return { ok: false, motivo: 'naoexiste', reason: 'Curso não encontrado.', upgrade: false };
+    if (adminSession()) return { ok: true, motivo: 'professor', reason: '', upgrade: false };
+    if (!student) return { ok: false, motivo: 'semlogin', reason: 'Faça login para assistir às aulas.', upgrade: false };
+
+    if (student.blocked) return { ok: false, motivo: 'bloqueado', reason: 'Seu acesso está bloqueado. Fale com o professor.', upgrade: false };
+
+    const tipo = tipoDoCurso(c);
+
+    // ---- aluno presencial ----
+    if (student.presencial) {
+      if (tipo === 'presencial') {
+        if (student.aprovado) return { ok: true, motivo: 'presencial', reason: '', upgrade: false };
+        return {
+          ok: false, motivo: 'aguardando', upgrade: false,
+          reason: 'Seu acesso presencial ainda não foi liberado. O professor precisa aprovar sua solicitação.'
+        };
+      }
+      // clicou em curso de assinatura: cobrar upgrade
+      return {
+        ok: false, motivo: 'upgrade', upgrade: true, curso: c,
+        reason: 'Este curso faz parte da assinatura. Faça o upgrade para assistir às aulas dele.'
+      };
+    }
+
+    // ---- aluno pagante ----
+    if (tipo === 'presencial') {
+      return {
+        ok: false, motivo: 'soPresencial', upgrade: false, curso: c,
+        reason: 'Este curso é exclusivo para alunos presenciais.'
+      };
+    }
+    const st = statusOf(student);
+    if (st.key !== 'ativo') return { ok: false, motivo: 'inativo', reason: 'Seu acesso não está ativo. Renove sua assinatura para assistir.', upgrade: true };
+    return { ok: true, motivo: 'assinatura', reason: '', upgrade: false };
   }
 
   function adminAuth(password) {
@@ -598,10 +658,12 @@ window.Store = (() => {
     return read().students.find(x => String(x.email).toLowerCase() === String(s.email).toLowerCase()) || null;
   }
 
+  /** Checagem geral: logado e com assinatura ativa (usado fora de um curso) */
   function canWatch(student = currentStudent()) {
     if (adminSession()) return { ok: true, reason: '' };
     if (!student) return { ok: false, reason: 'Faça login para assistir às aulas.' };
     const st = statusOf(student);
+    if (st.key === 'presencial') return { ok: true, reason: '' };
     if (st.key !== 'ativo') return { ok: false, reason: 'Seu acesso não está ativo. Renove sua assinatura para assistir.' };
     return { ok: true };
   }
@@ -769,38 +831,85 @@ window.Store = (() => {
     return mail;
   }
 
-  function makeStudent(uid, name, email, planId) {
+  function makeStudent(uid, name, email, planId, presencial = false) {
     return {
       id: uid, name: (name || email).trim(), email: String(email).toLowerCase(),
       planId: planId || 'mensal', status: 'pendente', expiresAt: null,
+      // presencial: aluno de turma presencial, liberado pelo professor
+      presencial: !!presencial,
+      // aprovado: SO o professor pode mudar isto (protegido pelas regras)
+      aprovado: false,
+      // observacoes livres do professor (ex.: turma, data da inscricao)
+      obs: '',
       blocked: false, createdAt: new Date().toISOString(), lastLogin: null
     };
   }
 
-  async function signUp({ name, email, password, planId }) {
+  async function signUp({ name, email, password, planId, presencial, obs }) {
     const mail = validateSignup(name, email, password);
 
     if (mode === 'firebase') {
-      const cred = await fb.authMod.createUserWithEmailAndPassword(fb.auth, mail, password);
+      // Criar conta pelo navegador TROCA quem esta logado. Se o professor
+      // fizer isso pelo painel, perderia o acesso ao proprio painel.
+      // Por isso, no modo nuvem o aluno precisa se cadastrar sozinho.
+      if (adminSession()) {
+        throw new Error('No modo nuvem o aluno cria a própria conta. Peça para ele entrar em login.html e escolher "Sou aluno presencial". Depois aprove aqui.');
+      }
+      cadastroPendente = { name: (name || mail).trim(), mail: mail, planId: planId, presencial: !!presencial, obs: obs || '' };
+      let cred;
+      try {
+        cred = await fb.authMod.createUserWithEmailAndPassword(fb.auth, mail, password);
+      } catch (e) {
+        cadastroPendente = null;
+        throw e;
+      }
       try {
         // no SDK modular, updateProfile e uma funcao solta (nao metodo)
         await fb.authMod.updateProfile(cred.user, { displayName: (name || mail).trim() });
       } catch (e) { /* apenas cosmetico */ }
-      save(d => {
-        if (!d.students.find(s => s.id === cred.user.uid)) {
-          d.students.push(makeStudent(cred.user.uid, name, mail, planId));
-        }
-      });
+      // garante o cadastro com os dados corretos (inclusive presencial)
+      cadastroPendente = null;
+      const prof = await garantirPerfil(cred.user) || student(mail);
       firebaseUser = cred.user;
-      return student(mail);
+      return prof || student(mail);
     }
 
     const plan = PLANS.find(p => p.id === planId) || PLANS[0];
-    const novo = makeStudent('s_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, mail, plan.id);
+    const novo = makeStudent('s_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, mail, plan.id, presencial);
     novo.password = password;
     save(d => { d.students.push(novo); });
     setSession({ role: 'student', email: novo.email, name: novo.name });
     return student(mail);
+  }
+
+  /** Professor aprova (ou revoga) o acesso de um aluno presencial */
+  function aprovarPresencial(id, aprovar = true, obs = null) {
+    save(d => {
+      const s = d.students.find(x => x.id === id);
+      if (!s) return;
+      s.presencial = true;
+      s.aprovado = !!aprovar;
+      if (obs !== null) s.obs = String(obs || '');
+      if (aprovar) s.status = 'presencial'; else s.status = 'pendente';
+    });
+    return read().students.find(x => x.id === id);
+  }
+
+  /** Converte um aluno presencial em pagante (upgrade) */
+  function virarPagante(id, planId) {
+    const plan = PLANS.find(p => p.id === planId) || PLANS[0];
+    save(d => {
+      const s = d.students.find(x => x.id === id);
+      if (!s) return;
+      s.presencial = false;
+      s.aprovado = false;
+      s.obs = '';
+      s.planId = plan.id;
+      const base = s.expiresAt && new Date(s.expiresAt) > new Date() ? new Date(s.expiresAt) : new Date();
+      s.expiresAt = UI.addDays(base.toISOString(), plan.days);
+      s.status = 'ativo';
+    });
+    return read().students.find(x => x.id === id);
   }
 
   async function loginStudent(email, password) {
@@ -945,6 +1054,26 @@ window.Store = (() => {
     }
     save(d => { d.settings.adminPassword = nova; });
     return true;
+  }
+
+  /** Recoloca o conteudo inicial (cursos e aulas de exemplo).
+      Preserva tudo que o professor ja cadastrou. */
+  function restaurarExemplo(soFaltando = true) {
+    const s = seed();
+    let novos = 0, atualizados = 0;
+    save(d => {
+      s.courses.forEach(c => {
+        const i = d.courses.findIndex(x => x.id === c.id);
+        if (i < 0) { d.courses.push(c); novos++; }
+        else if (!soFaltando) { d.courses[i] = c; atualizados++; }
+      });
+      s.episodes.forEach(e => {
+        const i = d.episodes.findIndex(x => x.id === e.id);
+        if (i < 0) { d.episodes.push(e); novos++; }
+        else if (!soFaltando) { d.episodes[i] = e; atualizados++; }
+      });
+    });
+    return { novos: novos, atualizados: atualizados };
   }
 
   /* =========================================================
@@ -1092,7 +1221,7 @@ window.Store = (() => {
     progressFor, saveProgress, markCompleted, continueWatching, lastCourse, myCourses,
     signUp, loginStudent, createPayment, latestPayment, approvePayment, rejectPayment,
     setStudent, extendStudent, deleteStudent, hasCourseCode, grantCourseCode, changePassword,
-    bancoVazio: () => FIREBASE_ON && !!(cache && !cache.courses.length)
+    aprovarPresencial, virarPagante, acessoAoCurso, tipoDoCurso, restaurarExemplo, bancoVazio: () => FIREBASE_ON && !!(cache && !cache.courses.length)
   };
 })();
 
