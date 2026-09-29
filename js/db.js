@@ -1227,6 +1227,42 @@ window.Store = (() => {
     });
   }
 
+  /** Envia o e-mail de redefinicao de senha.
+      Na nuvem quem manda e o proprio Firebase (a senha nunca passa pelo app).
+      No modo local nao ha servidor de e-mail: o aluno precisa falar com o
+      professor, que redefine pelo painel. */
+  async function enviarResetSenha(email) {
+    const mail = String(email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail)) {
+      return { ok: false, error: 'Digite um e-mail válido.' };
+    }
+    if (mode !== 'firebase') {
+      return {
+        ok: false,
+        local: true,
+        error: 'Peça ao professor para redefinir a sua senha. Ele faz isso em Painel → Alunos.'
+      };
+    }
+    try {
+      await fb.authMod.sendPasswordResetEmail(fb.auth, mail);
+      return { ok: true };
+    } catch (e) {
+      // O Firebase responde igual para e-mail existente e inexistente, para
+      // nao revelar quem tem conta. Só tratamos o que é erro real.
+      if (/invalid-email/i.test(e.code || '')) {
+        return { ok: false, error: 'E-mail inválido.' };
+      }
+      if (/too-many-requests/i.test(e.code || '')) {
+        return { ok: false, error: 'Muitos pedidos seguidos. Espere alguns minutos e tente de novo.' };
+      }
+      if (/network|unavailable|timeout/i.test(e.code || '')) {
+        return { ok: false, error: 'Sem conexão com a internet. Tente de novo.' };
+      }
+      console.warn('Falha ao enviar redefinição:', e);
+      return { ok: false, error: 'Não foi possível enviar agora. Tente novamente em instantes.' };
+    }
+  }
+
   async function changePassword(nova) {
     if (!nova || String(nova).length < 6) {
       throw new Error('A senha precisa ter pelo menos 6 caracteres.');
@@ -1434,7 +1470,7 @@ window.Store = (() => {
      ========================================================= */
   return {
     PLANS, PAY_METHODS, SAMPLE, chavePixOk, brCodePix, pixDeCobranca,
-    ready, boot, isCloud, currentMode, firebaseError, sessaoPronta, testarLeitura, testarDoc, ultimoSync,
+    ready, boot, isCloud, currentMode, firebaseError, sessaoPronta, testarLeitura, testarDoc, ultimoSync, enviarResetSenha,
     read, save, resetAll, exportJSON, importJSON,
     session, setSession, logout, adminAuth, adminSession, adminLogin: loginAdmin, currentStudent,
     statusOf, canWatch,

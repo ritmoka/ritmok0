@@ -77,7 +77,11 @@
       field('E-mail', email),
       field('Senha', pass),
       el('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '-.5rem 0 1.2rem' } }, [
-        el('span', { style: { fontSize: '.82rem', color: 'var(--muted)' }, text: 'Aluno?' }),
+        el('button', {
+          type: 'button', class: 'linkish',
+          text: 'Esqueci minha senha',
+          onclick: () => viewForgot()
+        }),
         show
       ]),
       el('button', { class: 'btn btn-primary btn-block', type: 'submit', id: 'btn-entrar', text: 'Entrar' })
@@ -132,6 +136,64 @@
         })
       ])
     ]);
+    setTimeout(() => email.focus(), 60);
+  }
+
+  /* ============================ ESQUECI A SENHA ============================ */
+
+  function viewForgot() {
+    step = 'forgot';
+    const email = input({
+      type: 'email', id: 'fp-email', placeholder: 'voce@email.com',
+      autocomplete: 'email', value: lastEmail || ''
+    });
+    const erro = el('div', { class: 'auth-error' });
+    const dica = el('div', { style: { display: 'none', margin: '.8rem 0' } });
+
+    const form = el('form', {
+      onsubmit: async e => {
+        e.preventDefault();
+        erro.classList.remove('show');
+        const btn = qs('#btn-reset');
+        if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+        const r = await S.enviarResetSenha(email.value);
+        if (btn) { btn.disabled = false; btn.textContent = 'Enviar link'; }
+        if (!r.ok) {
+          erro.textContent = r.error;
+          erro.classList.add('show');
+          email.focus();
+          return;
+        }
+
+        // deu certo: mostra o passo a passo e some com o formulario
+        form.style.display = 'none';
+        dica.style.display = '';
+        dica.innerHTML = '';
+        dica.append(
+          el('div', { class: 'success-ico' }, [el('span', { html: UI.icons.check })]),
+          el('h3', { style: { textAlign: 'center' }, text: 'E-mail enviado!' }),
+          el('p', { class: 'sub', style: { textAlign: 'center' } },
+            'Abra a mensagem que chegou em ' + String(email.value).trim().toLowerCase()
+            + ' e clique no link para criar uma senha nova. Se não aparecer em alguns minutos, olhe o spam.')
+        );
+      }
+    }, [
+      erro,
+      field('Seu e-mail de cadastro', email, 'É o mesmo e-mail que você usou para criar a conta.'),
+      el('button', { class: 'btn btn-primary btn-block', type: 'submit', id: 'btn-reset', text: 'Enviar link' })
+    ]);
+
+    shell([
+      logoBlock(),
+      el('h1', { text: 'Recuperar senha' }),
+      el('p', { class: 'sub', text: 'Enviamos um link para você criar uma senha nova.' }),
+      dica,
+      form,
+      el('div', { class: 'auth-foot', style: { marginTop: '1.2rem' } }, [
+        el('a', { href: '#', text: '← Voltar para entrar', onclick: e => { e.preventDefault(); viewLogin(); } })
+      ])
+    ], true);
+
     setTimeout(() => email.focus(), 60);
   }
 
