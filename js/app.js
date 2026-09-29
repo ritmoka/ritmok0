@@ -148,7 +148,9 @@
       }
     } else {
       const v = el('video', {
-        controls: true, autoplay: true, playsinline: true, preload: 'metadata', src: url,
+        controls: true, controlslist: 'nodownload noplaybackrate',
+        disablepictureinpicture: '',
+        autoplay: true, playsinline: true, preload: 'metadata', src: url,
         poster: Art.wide(curso.id + 'demo', curso.title)
       });
       v.addEventListener('error', () => {

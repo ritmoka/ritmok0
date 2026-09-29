@@ -206,6 +206,8 @@
     const video = el('video', {
       id: 'video',
       controls: true,
+      controlslist: 'nodownload noplaybackrate',   // tira o botao de baixar
+      disablepictureinpicture: '',
       autoplay: true,
       playsinline: true,
       preload: 'metadata',
@@ -213,6 +215,16 @@
       src: ep.videoUrl
     });
     stage.appendChild(video);
+
+    /* Remove o botao de download do controle nativo. So funciona em
+       alguns navegadores, por isso tambem escondemos pelo CSS. */
+    video.addEventListener('loadmetadata', () => {
+      try {
+        if (video.disableRemotePlayback !== undefined) video.disableRemotePlayback = true;
+        // Safari: o menu de contexto traz "Abrir em nova aba"
+        video.addEventListener('contextmenu', e => e.preventDefault());
+      } catch (e) { }
+    }, { once: true });
 
     // HLS (.m3u8) precisa de biblioteca externa
     if (/\.m3u8(\?|$)/i.test(ep.videoUrl)) {
