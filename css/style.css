@@ -224,6 +224,23 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .hero .meta .match { color: var(--green); font-weight: 700; }
 .hero .desc { max-width: 620px; font-size: 1.05rem; line-height: 1.6; color: #dcdce0; margin: 0 0 1.6rem; }
 .hero-actions { display: flex; gap: .8rem; flex-wrap: wrap; }
+
+/* --- demonstracao dentro do banner --- */
+.hero-demo-box { position: absolute; inset: 0; z-index: 3; display: none; background: #000; }
+.hero-demo .hero-demo-box { display: block; }
+.hero-demo .hero-content,
+.hero-demo .hero-bg,
+.hero-demo .hero::after,
+.hero-demo .hero-dots { display: none; }
+.hero-demo-box video,
+.hero-demo-box iframe,
+.hero-demo-media { width: 100%; height: 100%; display: block; border: 0; background: #000; }
+.hero-demo-box .stage-fallback { display: grid; place-items: center; height: 100%; }
+.demo-close {
+  position: absolute; top: 1rem; right: 1rem; z-index: 4;
+  background: rgba(0, 0, 0, .75);
+}
+.demo-close:hover { background: rgba(0, 0, 0, .95); }
 .hero-dots { position: absolute; right: 4%; bottom: 8%; display: flex; gap: .5rem; z-index: 3; }
 .hero-dots button { width: 26px; height: 4px; border: 0; background: rgba(255,255,255,.3); border-radius: 4px; padding: 0; }
 .hero-dots button.active { background: var(--accent); }

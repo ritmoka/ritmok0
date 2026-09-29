@@ -290,6 +290,7 @@
       code: input({ placeholder: 'Deixe vazio = acesso livre' }),
       cover: input({ placeholder: 'URL da imagem 16:9 (opcional)' }),
       poster: input({ placeholder: 'URL do pôster 2:3 (opcional)' }),
+      videoDemo: input({ type: 'text', placeholder: 'Link do vídeo de demonstração (MP4 ou YouTube)' }),
       description: area({ placeholder: 'Descrição completa que aparece na página do curso' })
     };
     const feat = el('input', { type: 'checkbox' });
@@ -333,6 +334,7 @@
         code: f.code.value.trim(),
         cover: f.cover.value.trim(),
         poster: f.poster.value.trim(),
+        videoDemo: f.videoDemo.value.trim(),
         description: f.description.value.trim(),
         featured: feat.checked,
         trending: trend.checked
@@ -362,6 +364,7 @@
         field('Nota (0 a 5)', f.rating),
         field('Código de acesso', f.code, 'Se preencher, o aluno precisa digitar este código para assistir.', true),
         field('Imagem de capa (URL)', f.cover, 'Deixe vazio para gerar uma capa automática.', true),
+        field('Vídeo de demonstração', f.videoDemo, 'Aparece no banner do site. Aceita MP4 ou YouTube. Deixe vazio para não mostrar o botão.', true),
         field('Pôster vertical (URL)', f.poster, null, true),
         field('Descrição', f.description, 'Explique o que o aluno vai aprender.', true),
         el('div', { class: 'field' }, [
@@ -387,6 +390,7 @@
         f.instructor.value = c.instructor || ''; f.category.value = c.category || '';
         f.level.value = c.level || ''; f.year.value = c.year || ''; f.rating.value = c.rating || '';
         f.code.value = c.code || ''; f.cover.value = c.cover || ''; f.poster.value = c.poster || '';
+        f.videoDemo.value = c.videoDemo || '';
         f.description.value = c.description || '';
         feat.checked = !!c.featured; trend.checked = !!c.trending;
         preview();

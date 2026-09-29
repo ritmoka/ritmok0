@@ -68,7 +68,7 @@ window.Store = (() => {
         tagline: 'Dança — do primeiro passo ao palco',
         description: 'Curso completo de dança para quem quer dançar de verdade. Começamos pelo zero: postura corporal, o primeiro movimento e o básico de ritmo. Depois entram expressividade, flexibilidade, condicionamento e a montagem de coreografia. Cada aula traz a explicação passo a passo, exercícios para você praticar em casa e o repertório comentado. Ao final você sai com danças prontas para apresentar.',
         category: 'Dança', instructor: 'Prof. Kennedy', level: 'Do zero ao palco',
-        acesso: 'assinatura',
+        acesso: 'assinatura', videoDemo: SAMPLE.bunny,
         year: 2026, rating: 4.9, featured: true, trending: true,
         cover: '', poster: '', backdrop: '', code: '', createdAt: now
       },
@@ -77,7 +77,7 @@ window.Store = (() => {
         tagline: 'O ritmo, a percussão e a coreografia para o seu grupo universitário montar a apresentação',
         description: 'Curso de vaneira para grupos universitários: a origem e a cultura do ritmo, percussão de base, coreografia em dupla e em roda, e como organizar um ensaio que chega pronto ao palco. Ideal para projetos de extensão, coletivos culturais, apresentações de fim de semestre e grupos de dança que se apresentam na universidade.',
         category: 'Vaneira', instructor: 'Prof. Kennedy', level: 'Todos os níveis',
-        acesso: 'presencial',
+        acesso: 'presencial', videoDemo: SAMPLE.meltdowns,
         year: 2026, rating: 4.7, featured: false, trending: true,
         cover: '', poster: '', backdrop: '', code: '', createdAt: now
       }
@@ -467,6 +467,20 @@ window.Store = (() => {
   }
   const igual = (a, b) => JSON.stringify(canonico(a)) === JSON.stringify(canonico(b));
 
+  /* O Firestore nao aceita undefined: limpamos antes de gravar */
+  function limpar(v) {
+    if (Array.isArray(v)) return v.map(limpar);
+    if (v && typeof v === 'object') {
+      const o = {};
+      Object.keys(v).forEach(k => {
+        if (v[k] === undefined) return;
+        o[k] = limpar(v[k]);
+      });
+      return o;
+    }
+    return v;
+  }
+
   function syncToCloud() {
     if (!fb || !cache) return;
     const cols = ['courses', 'episodes', 'students', 'payments', 'progress'];
@@ -499,7 +513,7 @@ window.Store = (() => {
           escritas.push(coll + '/' + id + ' (parcial)');
           return;
         }
-        batch.set(ref(coll, id), obj); pending++;
+        batch.set(ref(coll, id), limpar(obj)); pending++;
         existentes.add(coll + '/' + id);
         escritas.push(coll + '/' + id + (velho ? ' (atualizar)' : ' (criar)'));
       });
@@ -509,7 +523,7 @@ window.Store = (() => {
     if (lastSynced && podeGravar('settings', 'app') && !igual(
       { s: lastSynced.settings, p: lastSynced.plans },
       { s: cache.settings, p: cache.plans })) {
-      batch.set(ref('settings', 'app'), Object.assign({}, cache.settings, { planos: cache.plans }));
+      batch.set(ref('settings', 'app'), limpar(Object.assign({}, cache.settings, { planos: cache.plans })));
       pending++;
       escritas.push('settings/app (atualizar)');
     }

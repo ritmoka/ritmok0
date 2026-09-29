@@ -21,6 +21,62 @@
     return [...featured, ...trending, ...rest].slice(0, 5);
   }
 
+  /* ============================ DEMONSTRAÇÃO ============================ */
+
+  function fecharDemo() {
+    const hero = qs('#hero');
+    if (hero && hero.classList.contains('hero-demo')) {
+      const v = qs('#hero-demo-box video');
+      if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+      const box = qs('#hero-demo-box');
+      if (box) box.innerHTML = '';
+      hero.classList.remove('hero-demo');
+    }
+  }
+
+  function abrirDemo(curso) {
+    const url = String(curso.videoDemo || '').trim();
+    if (!url) { toast('Este curso ainda não tem vídeo de demonstração.', ''); return; }
+
+    const hero = qs('#hero');
+    fecharDemo();
+    hero.classList.add('hero-demo');
+    const box = qs('#hero-demo-box');
+    box.innerHTML = '';
+
+    // o botao de ficar fora do container da midia, para nunca sumir
+    box.appendChild(el('button', {
+      class: 'icon-btn demo-close', 'aria-label': 'Fechar demonstração', title: 'Fechar',
+      html: '<svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>',
+      onclick: fecharDemo
+    }));
+
+    const midia = el('div', { class: 'hero-demo-media' });
+    box.appendChild(midia);
+
+    const yt = UI.youtubeId(url);
+    if (yt) {
+      midia.appendChild(el('iframe', {
+        src: UI.embedUrl(url, 0), title: 'Demonstração: ' + curso.title,
+        allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
+        allowfullscreen: true, loading: 'lazy'
+      }));
+    } else {
+      const v = el('video', {
+        controls: true, autoplay: true, playsinline: true, preload: 'metadata', src: url,
+        poster: Art.wide(curso.id + 'demo', curso.title)
+      });
+      v.addEventListener('error', () => {
+        midia.innerHTML = '';
+        midia.appendChild(el('div', { class: 'stage-fallback' }, [
+          el('p', { text: 'Não foi possível carregar a demonstração.' }),
+          el('a', { class: 'btn btn-outline', href: url, target: '_blank', rel: 'noopener', text: 'Abrir em nova aba' })
+        ]));
+      });
+      midia.appendChild(v);
+    }
+  }
+
   function renderHero() {
     const list = featuredCourses();
     const host = qs('#hero');
@@ -58,6 +114,20 @@
 
     qs('#hero-play').onclick = () => playFirstEpisode(c);
     qs('#hero-info').onclick = () => openModal(c);
+
+    // botao de demonstracao (so aparece se o curso tiver video de demo)
+    const demo = c.videoDemo;
+    const bd = qs('#hero-demo');
+    if (demo) {
+      bd.style.display = '';
+      bd.textContent = c.featured ? '▶ Ver demonstração grátis' : '▶ Ver demonstração';
+      bd.onclick = () => abrirDemo(c);
+    } else {
+      bd.style.display = 'none';
+    }
+
+    // se a demo estiver aberta e o banner mudou, fecha
+    fecharDemo();
   }
 
   function startHeroRotation() {
@@ -315,6 +385,12 @@
         }
       })
     );
+    if (c.videoDemo) {
+      actions.appendChild(el('button', {
+        class: 'btn btn-ghost', text: '▶ Ver demonstração',
+        onclick: () => { closeModal(); abrirDemo(c); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      }));
+    }
     if (eps.length) {
       actions.appendChild(el('button', {
         class: 'btn btn-outline', text: '▶  Continuar de onde parei',
