@@ -1099,10 +1099,22 @@ window.Store = (() => {
         });
         return { ok: true, student: doc || currentStudent() };
       } catch (e) {
-        const msg = /invalid-email|user-not-found|wrong-password|invalid-credential/i.test(e.code)
-          ? 'E-mail ou senha incorretos.'
-          : 'Não foi possível entrar. Tente novamente.';
-        return { ok: false, error: msg };
+        const c = String(e.code || '');
+        let msg;
+        if (/invalid-email|user-not-found|wrong-password|invalid-credential|invalid-login/i.test(c)) {
+          msg = 'E-mail ou senha incorretos.';
+        } else if (/network-request-failed|timeout|unavailable|transport/i.test(c)) {
+          // O erro cru ("auth/network-request-failed") nao ajuda ninguem:
+          // normalmente e internet, DNS ou bloqueador de anuncios.
+          msg = 'Não conseguimos falar com o servidor. Confira a internet e, se usar bloqueador de anúncios, libere o Google Firebase. Tente de novo.';
+        } else if (/too-many-requests/i.test(c)) {
+          msg = 'Muitas tentativas seguidas. Espere um instante e tente de novo.';
+        } else if (/user-disabled/i.test(c)) {
+          msg = 'Esta conta está desativada. Fale com o professor.';
+        } else {
+          msg = 'Não foi possível entrar. Tente novamente.';
+        }
+        return { ok: false, error: msg, code: c };
       }
     }
 
@@ -1127,7 +1139,14 @@ window.Store = (() => {
         firebaseUser = cred.user;
         return { ok: true };
       } catch (e) {
-        return { ok: false, error: 'E-mail ou senha incorretos.' };
+        const c = String(e.code || '');
+        if (/network-request-failed|timeout|unavailable|transport/i.test(c)) {
+          return { ok: false, error: 'Não conseguimos falar com o servidor. Confira a internet e, se usar bloqueador de anúncios, libere o Google Firebase. Tente de novo.', code: c };
+        }
+        if (/too-many-requests/i.test(c)) {
+          return { ok: false, error: 'Muitas tentativas seguidas. Espere um instante e tente de novo.', code: c };
+        }
+        return { ok: false, error: 'E-mail ou senha incorretos.', code: c };
       }
     }
     return adminAuth(password) ? { ok: true } : { ok: false, error: 'Senha incorreta.' };

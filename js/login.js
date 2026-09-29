@@ -270,12 +270,21 @@
 
     function friendly(err) {
       const c = String(err && err.code || '');
-      if (/email-already-in-use/i.test(c)) return 'Já existe uma conta com este e-mail.';
+      if (/email-already-in-use/i.test(c)) return 'Já existe uma conta com este e-mail. Tente entrar ou use "Esqueci minha senha".';
       if (/invalid-email/i.test(c)) return 'Informe um e-mail válido.';
       if (/weak-password/i.test(c)) return 'A senha precisa ter pelo menos 6 caracteres.';
       if (/too-many-requests/i.test(c)) return 'Muitas tentativas. Aguarde um instante e tente de novo.';
       if (/operation-not-allowed|unauthorized/i.test(c)) return 'O cadastro está desativado no painel do professor.';
-      return (err && err.message) || 'Não foi possível criar a conta.';
+      // Sem internet, DNS bloqueado ou extensao (adblock) barrando o Google.
+      // Sem isto o aluno ve "Firebase: Error (auth/network-request-failed)".
+      if (/network-request-failed|timeout|unavailable|fetch|transport/i.test(c)) {
+        return 'Não conseguimos falar com o servidor. Verifique a internet e, se estiver usando bloqueador de anúncios, libere o Google Firebase nesta página. Tente de novo.';
+      }
+      if (/popup|operation|cancelled/i.test(c)) return 'A janela de cadastro não abriu. Verifique se o navegador não está bloqueando pop-ups.';
+      const bruto = String(err && err.message || '');
+      // nunca mostrar mensagem técnica crua para o aluno
+      if (/Firebase:|Error \(auth\//i.test(bruto)) return 'Não foi possível criar a conta agora. Tente novamente em instantes.';
+      return bruto || 'Não foi possível criar a conta.';
     }
 
     shell([
