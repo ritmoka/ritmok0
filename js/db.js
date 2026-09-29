@@ -39,11 +39,76 @@ window.Store = (() => {
     return '/ano';
   }
 
+  /* Hoje o RitmoK recebe so por Pix: e instantaneo, sem taxa e o aluno
+     paga em segundos. Para voltar a aceitar cartao/boleto, acrescente
+     { id: 'cartao', ... } ou { id: 'boleto', ... } aqui. */
   const PAY_METHODS = [
-    { id: 'pix', name: 'Pix', icon: '⚡' },
-    { id: 'cartao', name: 'Cartão', icon: '💳' },
-    { id: 'boleto', name: 'Boleto', icon: '🧾' }
+    { id: 'pix', name: 'Pix', icon: '⚡' }
   ];
+
+  /* ---------- Pix: gerador de BR Code (copia e cola) ---------- */
+
+  const semAcento = s => String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  /* O padrao do Pix e ASCII: acento, emoji ou travessao ocupam varios
+     bytes e quebram o tamanho do campo, e o codigo deixa de escanear. */
+  const asciiPix = s => semAcento(s).replace(/[^A-Za-z0-9 .,\-]/g, '').trim();
+
+  /** CRC16/CCITT-FALSE: o padrao do Pix exige no fim do codigo */
+  function crc16Pix(texto) {
+    let crc = 0xFFFF;
+    for (let i = 0; i < texto.length; i++) {
+      crc ^= texto.charCodeAt(i) << 8;
+      for (let b = 0; b < 8; b++) {
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+        crc &= 0xFFFF;
+      }
+    }
+    return crc.toString(16).toUpperCase().padStart(4, '0');
+  }
+
+  /** O banco so aceita chave de CPF/CNPJ, telefone ou e-mail */
+  function chavePixOk(chave) {
+    const k = String(chave || '').trim();
+    if (/^\d{11}$/.test(k) || /^\d{14}$/.test(k)) return true;             // cpf / cnpj
+    if (/^\+\d{10,14}$/.test(k)) return true;                             // celular
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(k)) return true;             // e-mail
+    return false;
+  }
+
+  function brCodePix(chave, valor, nome, cidade, txid) {
+    const tlv = (id, v) => id + String(v.length).padStart(2, '0') + v;
+    const id = String(txid || '***').replace(/[^A-Za-z0-9]/g, '').slice(0, 25).toUpperCase() || '***';
+    let p = '000201';
+    p += tlv('26', tlv('00', 'br.gov.bcb.pix') + tlv('01', String(chave).trim()));
+    p += tlv('52', '0000');
+    p += tlv('53', '986');
+    if (Number(valor) > 0) p += tlv('54', Number(valor).toFixed(2));
+    p += tlv('58', 'BR');
+    p += tlv('59', asciiPix(nome).slice(0, 25).toUpperCase());
+    p += tlv('60', asciiPix(cidade).slice(0, 15).toUpperCase());
+    p += tlv('62', tlv('05', id));
+    p += '6304';
+    return p + crc16Pix(p);
+  }
+
+  /** Codigo que o aluno escaneia. A chave e a do professor, cadastrada
+      em Painel > Configuracoes: sem ela nao existe Pix valido. */
+  function pixDeCobranca(plan, ref) {
+    const st = settings();
+    const chave = String(st.pixKey || '').trim();
+    if (!chavePixOk(chave)) {
+      return {
+        ok: false, chave: '', codigo: '',
+        motivo: 'A chave Pix do professor ainda não foi cadastrada no painel.'
+      };
+    }
+    return {
+      ok: true, chave, motivo: '',
+      codigo: brCodePix(chave, Number(plan.price) || 0, st.brandName || 'RitmoK', st.pixCity || 'SAO PAULO', ref)
+    };
+  }
 
   /* ---------- videos de demonstracao (troque pelos seus) ---------- */
   const SAMPLE = {
@@ -110,6 +175,8 @@ window.Store = (() => {
         adminPassword: d.adminPassword || 'admin123',
         adminEmail: d.adminEmail || ADMIN_EMAIL,
         contactEmail: d.contactEmail || 'contato@ritmok.com',
+        pixKey: d.pixKey || '',
+        pixCity: d.pixCity || 'SAO PAULO',
         requireApproval: true,
         heroRotation: true
       },
@@ -234,9 +301,26 @@ window.Store = (() => {
     if (!fb) return read();
     const meus = await carregarMeus();
     if (cache && meus.progress.length) cache.progress = meus.progress;
-    if (cache) cache.payments = meus.payments;
+    if (cache) cache.payments = juntarRecemCriados(meus.payments);
     window.dispatchEvent(new CustomEvent('store:changed'));
     return read();
+  }
+
+  /* ---------- pagamentos recem-criados pelo aluno ---------- */
+
+  /* O aviso do Firestore chega antes da gravacao terminar. Sem isto, a
+     lista vinda da nuvem vinha vazia e apagava da memoria o pagamento
+     que o aluno acabara de criar: ele nunca chegava ao painel. */
+  const recemCriados = new Map();
+
+  function juntarRecemCriados(lista) {
+    if (!recemCriados.size) return lista;
+    const ids = new Set(lista.map(x => x.id));
+    recemCriados.forEach((p, id) => {
+      if (ids.has(id)) recemCriados.delete(id);   // a nuvem ja confirmou este
+      else lista = lista.concat([p]);
+    });
+    return lista;
   }
 
   /** Progresso e pagamentos visiveis para quem esta logado agora */
@@ -256,7 +340,7 @@ window.Store = (() => {
         fb.fsMod.getDocs(fb.fsMod.query(fb.fsMod.collection(fb.db, 'payments'), fb.fsMod.where('uid', '==', uid)))
       ]);
       out.progress = prog.docs.map(d => Object.assign({ id: d.id }, d.data()));
-      out.payments = pays.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      out.payments = juntarRecemCriados(pays.docs.map(d => Object.assign({ id: d.id }, d.data())));
     } catch (e) { /* sem permissao: segue sem historico */ }
     return out;
   }
@@ -381,7 +465,7 @@ window.Store = (() => {
       // o aluno acompanha o proprio pagamento ao vivo: quando o
       // professor aprova, a tela muda sozinha sem recarregar
       const meusPays = fb.fsMod.query(colecao('payments'), fb.fsMod.where('uid', '==', uid));
-      ear(meusPays, s => { cache.payments = lista(s); }, 'payments');
+      ear(meusPays, s => { cache.payments = juntarRecemCriados(lista(s)); }, 'payments');
       unsubs.push(fb.fsMod.onSnapshot(
         ref('students', uid),
         s => {
@@ -932,7 +1016,8 @@ window.Store = (() => {
       return prof || student(mail);
     }
 
-    const plan = PLANS.find(p => p.id === planId) || PLANS[0];
+    const lista = planos();
+    const plan = lista.find(p => p.id === planId) || lista[0];
     const novo = makeStudent('s_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name, mail, plan.id, presencial);
     novo.password = password;
     save(d => { d.students.push(novo); });
@@ -955,7 +1040,7 @@ window.Store = (() => {
 
   /** Converte um aluno presencial em pagante (upgrade) */
   function virarPagante(id, planId) {
-    const plan = PLANS.find(p => p.id === planId) || PLANS[0];
+    const plan = planos().find(p => p.id === planId) || planos()[0];
     save(d => {
       const s = d.students.find(x => x.id === id);
       if (!s) return;
@@ -1021,13 +1106,18 @@ window.Store = (() => {
   /* =========================================================
      PAGAMENTOS
      ========================================================= */
-  function createPayment({ email, planId, method }) {
-    const plan = PLANS.find(p => p.id === planId) || PLANS[0];
+  function createPayment({ email, planId, method, ref }) {
+    // usa o plano cadastrado no painel, nunca a lista de origem: se o
+    // professor mudar o preco, o valor cobrado tem que ser o novo
+    const lista = planos();
+    const plan = lista.find(p => p.id === planId) || lista[0];
     const s = student(email);
     if (!s) throw new Error('Aluno não encontrado.');
     const pm = PAY_METHODS.find(m => m.id === method) || PAY_METHODS[0];
     const code = Math.random().toString(36).slice(2, 10).toUpperCase();
-    const ref2 = String(Date.now()).slice(-8);
+    // a mesma referencia vai dentro do codigo Pix, para o professor
+    // casar o pagamento no extrato com o aluno
+    const ref2 = String(ref || Date.now()).replace(/[^A-Za-z0-9]/g, '').slice(0, 25).toUpperCase();
     // o id comeca com o uid do dono: e assim que a nuvem sabe
     // que o pagamento pertence a este aluno
     const dono = s.id || '';
@@ -1038,6 +1128,7 @@ window.Store = (() => {
       status: 'pendente', createdAt: new Date().toISOString(), approvedAt: null
     };
     save(d => { d.payments.push(pay); });
+    recemCriados.set(pay.id, pay);   // protege ate a nuvem confirmar
     return pay;
   }
 
@@ -1313,7 +1404,7 @@ window.Store = (() => {
      API PUBLICA
      ========================================================= */
   return {
-    PLANS, PAY_METHODS, SAMPLE,
+    PLANS, PAY_METHODS, SAMPLE, chavePixOk, brCodePix, pixDeCobranca,
     ready, boot, isCloud, currentMode, firebaseError, sessaoPronta, testarLeitura, testarDoc, ultimoSync,
     read, save, resetAll, exportJSON, importJSON,
     session, setSession, logout, adminAuth, adminSession, adminLogin: loginAdmin, currentStudent,

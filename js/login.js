@@ -8,7 +8,7 @@
 
   let step = 'login';          // login | signup | plans | pay | pending | done
   let selectedPlan = 'mensal';
-  let selectedMethod = 'pix';
+  let selectedMethod = S.PAY_METHODS[0].id;
   let lastPayment = null;
   let lastEmail = '';
 
@@ -263,14 +263,14 @@
       ]),
       grid,
       el('div', { class: 'steps' }, [
-        el('li', { text: 'Escolha o plano e pague (Pix, cartão ou boleto).' }),
+        el('li', { text: 'Escolha o plano e pague por Pix.' }),
         el('li', { text: 'O professor aprova e sua conta vira de acesso ilimitado.' }),
         el('li', { text: 'Você mantém o acesso presencial também — nada se perde.' })
       ]),
       el('button', {
         class: 'btn btn-primary btn-block', text: 'Fazer upgrade agora',
         onclick: () => {
-          const pay = S.createPayment({ email: st.email, planId: selectedPlan, method: 'pix' });
+          const pay = S.createPayment({ email: st.email, planId: selectedPlan, method: selectedMethod });
           lastPayment = pay;
           lastEmail = st.email;
           toast('Pedido enviado! O professor vai aprovar.', 'ok');
@@ -353,9 +353,14 @@
   function viewPay() {
     step = 'pay';
     const plan = S.planos().find(p => p.id === selectedPlan);
+    const metodos = S.PAY_METHODS;
+
+    // com uma unica forma de pagamento nao ha o que escolher: mostra
+    // so o aviso, sem uma lista com um item so
+    const metodosVisiveis = metodos.length > 1;
 
     const methods = el('div', { class: 'pay-methods' });
-    S.PAY_METHODS.forEach(m => {
+    metodos.forEach(m => {
       const b = el('div', { class: 'pm' + (m.id === selectedMethod ? ' active' : ''), role: 'button', tabindex: '0' }, [
         el('div', { style: { fontSize: '1.3rem' }, text: m.icon }),
         el('div', { text: m.name })
@@ -371,19 +376,36 @@
       methods.appendChild(b);
     });
 
-    const pix = `00020126580014BR.GOV.BCB.PIX0136${String(lastEmail).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 40)}5204000053039865802BR5920AULA${brand().toUpperCase().slice(0, 20)}6009SAQ`;
+    // a mesma referencia entra no codigo Pix e no pagamento enviado ao
+    // professor: e assim que ele casa o pix com o aluno no extrato
+    const refPix = String(Date.now()).slice(-8) + Math.floor(Math.random() * 90 + 10);
+    const pix = S.pixDeCobranca(plan, refPix);
 
     const summary = el('div', { class: 'pix-box' });
     function renderSummary() {
       summary.innerHTML = '';
+      const metodo = metodos.find(m => m.id === selectedMethod) || metodos[0];
       const parts = [
         el('div', { style: { fontWeight: '700', marginBottom: '.3rem' }, text: 'Resumo da assinatura' }),
-        el('div', { style: { color: 'var(--muted)', fontSize: '.9rem' }, text: `${plan.name} · ${selectedMethod === 'pix' ? 'Pix à vista' : selectedMethod === 'cartao' ? 'Cartão de crédito' : 'Boleto'} · ${plan.days < 365 ? plan.days + ' dias de acesso' : 'Acesso vitalício'}` }),
+        el('div', { style: { color: 'var(--muted)', fontSize: '.9rem' }, text: `${plan.name} · ${metodo.name} · ${plan.days < 365 ? plan.days + ' dias de acesso' : 'Acesso vitalício'}` }),
         el('div', { style: { fontSize: '1.7rem', fontWeight: '800', margin: '.4rem 0 .2rem' }, text: money(plan.price) })
       ];
-      if (selectedMethod === 'pix') parts.push(el('div', { class: 'pix-code', text: pix }));
-      if (selectedMethod === 'boleto') parts.push(el('div', { class: 'pix-code', text: '34191.79001 01043.510047 91020.150008 8' + Math.floor(Math.random() * 1e4) }));
-      if (selectedMethod === 'cartao') parts.push(el('div', { style: { color: 'var(--muted)', fontSize: '.85rem', marginTop: '.5rem' }, text: 'Você será redirecionado para o gateway do cartão.' }));
+      if (selectedMethod === 'pix') {
+        if (pix.ok) {
+          parts.push(el('div', { class: 'pix-code', text: pix.codigo }));
+          parts.push(el('div', { class: 'pix-dica', text: 'Abra o app do seu banco, escolha Pix → Pagar com QR Code → Ler QR Code, e aponte a câmera para esta tela.' }));
+          parts.push(el('div', { class: 'pix-ref', text: `Referência: ${refPix}` }));
+        } else {
+          parts.push(el('div', { class: 'pix-alerta' }, [
+            el('strong', { text: 'Pix ainda não liberado' }),
+            el('span', { text: pix.motivo })
+          ]));
+        }
+      } else if (selectedMethod === 'boleto') {
+        parts.push(el('div', { class: 'pix-code', text: '34191.79001 01043.510047 91020.150008 8' + Math.floor(Math.random() * 1e4) }));
+      } else if (selectedMethod === 'cartao') {
+        parts.push(el('div', { style: { color: 'var(--muted)', fontSize: '.85rem', marginTop: '.5rem' }, text: 'Você será redirecionado para o gateway do cartão.' }));
+      }
       summary.append(...parts);
     }
     renderSummary();
@@ -391,16 +413,27 @@
     shell([
       logoBlock(),
       el('h1', { text: 'Pagamento' }),
-      el('p', { class: 'sub', text: 'Escolha como deseja pagar. O acesso é liberado após a aprovação do pagamento.' }),
+      el('p', {
+        class: 'sub',
+        text: metodosVisiveis
+          ? 'Escolha como deseja pagar. O acesso é liberado após a aprovação do pagamento.'
+          : 'Pague por Pix. O acesso é liberado após a aprovação do pagamento.'
+      }),
       errorBox(),
-      methods,
+      metodosVisiveis ? methods : el('div', { class: 'pix-so' }, [
+        el('span', { class: 'pix-so-ico', text: '⚡' }),
+        el('div', {}, [
+          el('strong', { text: 'Pagamento via Pix' }),
+          el('small', { text: 'Aprovação na hora, sem taxa adicional.' })
+        ])
+      ]),
       summary,
       el('div', { class: 'lock-note', html: UI.icons.lock + ' <span>Ambiente de demonstração: nenhum dado real é cobrado ou enviado. O professor aprova o pagamento no painel.</span>' }),
       el('button', {
         class: 'btn btn-primary btn-block', text: 'Já paguei — enviar para aprovação',
         onclick: () => {
           try {
-            lastPayment = S.createPayment({ email: lastEmail, planId: selectedPlan, method: selectedMethod });
+            lastPayment = S.createPayment({ email: lastEmail, planId: selectedPlan, method: selectedMethod, ref: refPix });
             toast('Solicitação enviada! Aguarde a aprovação.', 'ok');
             viewPending();
           } catch (err) { showError(err.message); }

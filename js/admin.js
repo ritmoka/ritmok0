@@ -829,6 +829,36 @@
     ]);
     host.appendChild(fBox);
 
+    const pixKey = input({ value: st.pixKey || '', placeholder: 'CPF, celular com DDD ou e-mail' });
+    const pixCity = input({ value: st.pixCity || '', placeholder: 'Ex.: SAO PAULO' });
+    const avisoChave = el('div', { class: 'hint' });
+
+    function checarChave() {
+      const v = pixKey.value.trim();
+      if (!v) { avisoChave.textContent = 'Sem chave cadastrada, o aluno vê um aviso e não recebe o código para pagar.'; avisoChave.className = 'hint hint-warn'; return; }
+      if (S.chavePixOk(v)) { avisoChave.textContent = 'Chave válida. O código Pix gerado escaneia no app do banco.'; avisoChave.className = 'hint hint-ok'; }
+      else { avisoChave.textContent = 'Chave inválida. Use CPF/CNPJ (só números), celular com +55 e DDD, ou um e-mail.'; avisoChave.className = 'hint hint-warn'; }
+    }
+    pixKey.addEventListener('input', checarChave);
+    checarChave();
+
+    const pixBox = box('Receber por Pix', 'Chave para onde o dinheiro cai. É a mesma do seu banco, no app em "Receber".', [
+      el('div', { class: 'form-grid' }, [
+        el('div', { class: 'field full' }, [el('label', { text: 'Chave Pix' }), pixKey, avisoChave]),
+        field('Cidade', pixCity, 'Aparece no extrato do seu banco. Sem acento.', true)
+      ]),
+      el('div', { style: { display: 'flex', gap: '.6rem', marginTop: '.4rem' } }, [
+        el('button', { class: 'btn btn-primary', text: 'Salvar chave Pix', onclick: () => {
+          const v = pixKey.value.trim();
+          if (v && !S.chavePixOk(v)) { toast('Chave Pix inválida. Confira o formato.', ''); return; }
+          S.save(d => { d.settings.pixKey = v; d.settings.pixCity = pixCity.value.trim() || 'SAO PAULO'; });
+          toast('Chave Pix salva. Já vale para os novos pagamentos.', 'ok');
+          checarChave();
+        } })
+      ])
+    ]);
+    host.appendChild(pixBox);
+
     const pBox = box('Senha do professor',
       S.isCloud()
         ? 'Use o mesmo e-mail do professor. A nova senha vale em todos os aparelhos.'
