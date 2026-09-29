@@ -357,6 +357,7 @@
         field('Título do curso *', f.title, null, true),
         field('Frase de destaque', f.tagline, null, true),
         field('Tipo de acesso *', fAcesso, 'Presencial: só alunos liberados pelo professor, sem mensalidade.', true),
+        field('Vídeo de demonstração', f.videoDemo, 'Aparece no banner do site. Aceita MP4 ou YouTube. Deixe vazio para não mostrar o botão.', true),
         field('Professor / instrutor', f.instructor),
         field('Categoria', f.category),
         field('Nível', f.level),
@@ -364,7 +365,6 @@
         field('Nota (0 a 5)', f.rating),
         field('Código de acesso', f.code, 'Se preencher, o aluno precisa digitar este código para assistir.', true),
         field('Imagem de capa (URL)', f.cover, 'Deixe vazio para gerar uma capa automática.', true),
-        field('Vídeo de demonstração', f.videoDemo, 'Aparece no banner do site. Aceita MP4 ou YouTube. Deixe vazio para não mostrar o botão.', true),
         field('Pôster vertical (URL)', f.poster, null, true),
         field('Descrição', f.description, 'Explique o que o aluno vai aprender.', true),
         el('div', { class: 'field' }, [
