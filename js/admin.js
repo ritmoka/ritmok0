@@ -155,7 +155,13 @@
           el('td', { text: UI.dateBR(p.createdAt) }),
           el('td', {}, p.status === 'pendente'
             ? el('div', { class: 'row-actions' }, [
-                el('button', { class: 'mini ok', text: 'Aprovar', onclick: () => { S.approvePayment(p.id); toast('Pagamento aprovado e acesso liberado.', 'ok'); render(); } }),
+                el('button', { class: 'mini ok', text: 'Aprovar', onclick: () => {
+                  const pay = S.approvePayment(p.id);
+                  toast(pay && pay.__virouPagante
+                    ? 'Aprovado! O aluno virou pagante e ganhou acesso aos cursos online.'
+                    : 'Pagamento aprovado e acesso liberado.', 'ok');
+                  render();
+                } }),
                 el('button', { class: 'mini danger', text: 'Recusar', onclick: () => { S.rejectPayment(p.id); render(); } })
               ])
             : el('small', { style: { color: 'var(--muted)' }, text: p.approvedAt ? 'ok' : '—' }))
@@ -729,7 +735,13 @@
         el('td', {}, el('span', { class: 'badge badge-' + st, text: p.status })),
         el('td', {}, p.status === 'pendente'
           ? el('div', { class: 'row-actions' }, [
-              el('button', { class: 'mini ok', text: 'Aprovar', onclick: () => { S.approvePayment(p.id); toast('Aprovado! Acesso do aluno liberado.', 'ok'); render(); } }),
+              el('button', { class: 'mini ok', text: 'Aprovar', onclick: () => {
+                const pay = S.approvePayment(p.id);
+                toast(pay && pay.__virouPagante
+                  ? 'Aprovado! O aluno virou pagante e ganhou acesso aos cursos online.'
+                  : 'Aprovado! Acesso do aluno liberado.', 'ok');
+                render();
+              } }),
               el('button', { class: 'mini danger', text: 'Recusar', onclick: () => { S.rejectPayment(p.id); render(); } })
             ])
           : el('small', { style: { color: 'var(--muted)' }, text: p.approvedAt ? 'liberado' : '—' }))

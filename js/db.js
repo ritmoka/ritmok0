@@ -1014,6 +1014,7 @@ window.Store = (() => {
   function approvePayment(paymentId) {
     const pay = read().payments.find(p => p.id === paymentId);
     if (!pay) throw new Error('Pagamento não encontrado.');
+    let convertido = false;
     save(d => {
       const p = d.payments.find(x => x.id === paymentId);
       p.status = 'aprovado';
@@ -1021,12 +1022,18 @@ window.Store = (() => {
       const st = d.students.find(x =>
         x.id === p.uid || String(x.email).toLowerCase() === String(p.email).toLowerCase());
       if (st) {
+        // Aprovar um pagamento = virar pagante.
+        // Sem isso, um aluno presencial continuaria preso so nos
+        // cursos de turma mesmo com a assinatura paga.
+        if (st.presencial) { st.presencial = false; st.aprovado = false; st.obs = ''; convertido = true; }
+        st.planId = p.planId;
         const base = st.expiresAt && new Date(st.expiresAt) > new Date() ? new Date(st.expiresAt) : new Date();
         st.expiresAt = UI.addDays(base.toISOString(), p.days);
         st.blocked = false;
         st.status = 'ativo';
       }
     });
+    pay.__virouPagante = convertido;
     return pay;
   }
 
