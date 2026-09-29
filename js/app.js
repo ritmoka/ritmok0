@@ -23,9 +23,45 @@
 
   /* ============================ DEMONSTRAÇÃO ============================ */
 
+  /* O player do YouTube so avisa que terminou pela API oficial dele.
+     Num iframe solto nenhum aviso chega, e a demonstracao ficava
+     aberta para sempre no fim do video. */
+  let playerDemo = null;
+  let redeFim = null;
+
+  function limparRedeFim() {
+    if (redeFim) { clearTimeout(redeFim); redeFim = null; }
+    if (playerDemo && playerDemo.destroy) { try { playerDemo.destroy(); } catch (e) { } }
+    playerDemo = null;
+  }
+
+  /** Carrega o script da API do YouTube uma unica vez */
+  function carregarApiYoutube() {
+    return new Promise((resolve, reject) => {
+      if (window.YT && window.YT.Player) return resolve();
+      let s = document.getElementById('yt-iframe-api');
+      if (!s) {
+        s = document.createElement('script');
+        s.id = 'yt-iframe-api';
+        s.src = 'https://www.youtube.com/iframe_api';
+        s.onerror = () => reject(new Error('API do YouTube nao carregou'));
+        document.head.appendChild(s);
+      }
+      const anterior = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        if (anterior) anterior();
+        resolve();
+      };
+      setTimeout(() => reject(new Error('demora na API do YouTube')), 8000);
+    });
+  }
+
   function fecharDemo() {
     const hero = qs('#hero');
     if (hero && hero.classList.contains('hero-demo')) {
+      // se o aluno abriu em tela cheia, sai antes de esconder o player
+      if (document.fullscreenElement) { document.exitFullscreen().catch(() => { }); }
+      limparRedeFim();
       const v = qs('#hero-demo-box video');
       if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
       const box = qs('#hero-demo-box');
@@ -33,6 +69,31 @@
       hero.classList.remove('hero-demo');
       startHeroRotation();   // volta a girar quando o aluno fecha
     }
+  }
+
+  /** Fecha a demonstracao sozinha quando o video do YouTube acaba.
+      Usa a API oficial porque o iframe sozinho nunca avisa nada. */
+  function fecharSoQuandoAcabar(iframe) {
+    carregarApiYoutube().then(() => {
+      // o aluno pode ter fechado enquanto a API carregava
+      if (!document.body.contains(iframe)) return;
+      playerDemo = new YT.Player(iframe, {
+        events: {
+          onStateChange: (e) => {
+            // 0 = ENDED, o video terminou
+            if (e.data === 0) fecharDemo();
+          },
+          onReady: (e) => {
+            // rede de seguranca: se algum aviso se perder, fecha pelo relogio
+            const d = e.target.getDuration ? e.target.getDuration() : 0;
+            if (d > 0) redeFim = setTimeout(fecharDemo, (d + 4) * 1000);
+          }
+        }
+      });
+    }).catch(() => {
+      // API fora do ar: rede maxima, para o banner nao travar em loop
+      if (document.body.contains(iframe)) redeFim = setTimeout(fecharDemo, 180000);
+    });
   }
 
   function abrirDemo(curso) {
@@ -63,11 +124,15 @@
     const yt = UI.youtubeId(url);
     if (yt) {
       const tela = el('div', { class: 'demo-frame' });
-      tela.appendChild(el('iframe', {
-        src: UI.embedUrl(url, 0), title: 'Demonstração: ' + curso.title,
+      const player = el('iframe', {
+        // enablejsapi=1: liga a API do YouTube, que avisa o fim do video
+        src: UI.embedUrl(url, 0) + '&enablejsapi=1',
+        title: 'Demonstração: ' + curso.title,
         allow: 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture',
         allowfullscreen: true, loading: 'lazy'
-      }));
+      });
+      tela.appendChild(player);
+      fecharSoQuandoAcabar(player);
       if (vertical) {
         box.classList.add('is-short');
         midia.append(
@@ -93,6 +158,8 @@
           el('a', { class: 'btn btn-outline', href: url, target: '_blank', rel: 'noopener', text: 'Abrir em nova aba' })
         ]));
       });
+      // MP4 avisa o fim sozinho: fecha a demonstracao sem esperar o clique
+      v.addEventListener('ended', fecharDemo);
       midia.appendChild(v);
     }
   }
