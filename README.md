@@ -111,6 +111,63 @@ O painel mostra o tipo detectado logo abaixo do campo.
 
 ---
 
+## 🎓 Alunos presenciais (sem mensalidade)
+
+Você pode liberar alunos de turma presencial com um acesso próprio, **sem
+pagamento**, e pedir upgrade se eles quiserem os cursos online.
+
+### Como funciona
+
+1. O aluno entra em `login.html` → **Criar conta** → aba **"Sou aluno presencial"**
+2. Ele informa a turma e envia a solicitação (grátis)
+3. No painel → **Alunos**, aparece com o botão **"✔ Aprovar acesso"**
+4. Aprovado: ele acessa os cursos marcados como **Presencial**
+5. Se clicar num curso de **Assinatura**, vê o paywall com os planos e o botão
+   **"Quero fazer o upgrade"**
+
+### Marcar um curso como presencial
+
+Painel → **Cursos** → *Editar* → **Tipo de acesso: Presencial (turma)**.
+
+Cards e páginas de curso mostram o selo verde **Presencial**.
+
+### No painel de alunos
+
+| Botão | O que faz |
+|---|---|
+| ✔ Aprovar acesso | libera o presencial |
+| Revogar acesso | bloqueia de volta |
+| → Virar pagante | remove o presencial e ativa a assinatura |
+| → Presencial | move um pagante para presencial |
+
+Filtros: Todos / Presenciais / Pagantes / Aguardando.
+
+### Segurança
+
+As regras do Firestore impedem o aluno de se aprovar sozinho:
+
+```
+allow create: if isDono(id)
+  && request.resource.data.aprovado == false
+  && request.resource.data.expiresAt == null
+  && request.resource.data.blocked == false;
+```
+
+E depois de criado, o aluno só pode alterar o próprio nome e último acesso.
+Só o professor mexe em `aprovado`, `presencial` e `expiresAt`.
+
+> No modo nuvem (Firebase), o aluno **precisa criar a própria conta** — o painel
+> mostra o link. Isso é porque criar um usuário pelo painel trocaria a sessão do
+> professor para o novo aluno.
+
+### Restaurar conteúdo de exemplo
+
+Se apagar aulas sem querer, o painel → **Cursos** tem:
+- **↺ Repor aulas que faltam** — recria só o que sumiu
+- **⚠ Restaurar conteúdo do zero** — apaga tudo e volta ao original
+
+---
+
 ## ☁️ Firebase — já configurado e funcionando
 
 Projeto `ritmok1`, chaves em `js/firebase-config.js`. Testado de ponta a ponta:
