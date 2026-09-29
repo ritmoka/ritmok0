@@ -55,10 +55,10 @@ window.Store = (() => {
 
     const courses = [
       {
-        id: 'c_sertanejo', title: 'Sertanejo do Zero ao Palco',
+        id: 'c_sertanejo', title: 'Dança do Zero ao Palco',
         tagline: 'Dança — do primeiro passo ao palco',
-        description: 'Curso completo de sertanejo para quem quer tocar de verdade. Começamos pelo zero: como segurar a viola, como afinar, primeiros acordes e o ritmo que sustenta a música. Depois entram sanfona, baixinho e percussão, harmonia aplicada para não errar na hora de trocar de acorde, um repertório com 10 músicas para tocar já no primeiro mês e, por último, a técnica de cantar e tocar ao mesmo tempo. Todas as aulas são comentadas nota a nota, com partitura na tela e exercícios práticos para você tocar junto.',
-        category: 'Sertanejo', instructor: 'Prof. Kennedy', level: 'Do zero ao palco',
+        description: 'Curso completo de dança para quem quer dançar de verdade. Começamos pelo zero: postura corporal, o primeiro movimento e o básico de ritmo. Depois entram expressividade, flexibilidade, condicionamento e a montagem de coreografia. Cada aula traz a explicação passo a passo, exercícios para você praticar em casa e o repertório comentado. Ao final você sai com danças prontas para apresentar.',
+        category: 'Dança', instructor: 'Prof. Kennedy', level: 'Do zero ao palco',
         year: 2026, rating: 4.9, featured: true, trending: true,
         cover: '', poster: '', backdrop: '', code: '', createdAt: now
       },
@@ -73,16 +73,16 @@ window.Store = (() => {
     ];
 
     const episodes = [
-      { id: 'e_s1', courseId: 'c_sertanejo', number: 1, title: 'Boas-vindas: o mapa do caminho até o palco', description: 'O que você vai dominar ao fim do curso, quais materiais precisa e como montar uma rotina de treino que funciona.', duration: '00:12', videoUrl: SAMPLE.fun, createdAt: now },
-      { id: 'e_s2', courseId: 'c_sertanejo', number: 2, title: 'Conhecendo a viola: afinação, postura e o primeiro som', description: 'Como segurar o instrumento, onde ficam as notas, como afinar de ouvido e os 3 acordes que tocam metade do repertório.', duration: '00:15', videoUrl: SAMPLE.escapes, createdAt: now },
-      { id: 'e_s3', courseId: 'c_sertanejo', number: 3, title: 'Acordes básicos: maior, menor e com sétima', description: 'Forma dos dedos, transições entre acordes e o truque para a mão não travar quando a música acelera.', duration: '00:14', videoUrl: SAMPLE.blazes, createdAt: now },
-      { id: 'e_s4', courseId: 'c_sertanejo', number: 4, title: 'A batida do sertanejo: o ritmo que sustenta tudo', description: 'O ritmo base com palhetada, quando acelerar e quando aliviar a mão nas reprises.', duration: '00:18', videoUrl: SAMPLE.joyrides, createdAt: now },
-      { id: 'e_s5', courseId: 'c_sertanejo', number: 5, title: 'Sanfona: teclas, gaita e o peso da mão', description: 'Como pressurizar o fole, a posição das mãos nas teclas e sair tocando com autonomia depois da quinta aula.', duration: '00:16', videoUrl: SAMPLE.meltdowns, createdAt: now },
-      { id: 'e_s6', courseId: 'c_sertanejo', number: 6, title: 'Baixinho e percussão: a camada que dá profissionalidade', description: 'Linha de baixo, contrapontos simples e o toque de ganzá e pandeiro que prende a música no ritmo certo.', duration: '00:13', videoUrl: SAMPLE.bunny, createdAt: now },
-      { id: 'e_s7', courseId: 'c_sertanejo', number: 7, title: 'Harmonia aplicada: quando usar aberto e quando usar fechado', description: 'Regras simples para escolher a afinação, parar os acordes no lugar errado e soar com a banda sem brigar.', duration: '00:15', videoUrl: SAMPLE.escapes, createdAt: now },
-      { id: 'e_s8', courseId: 'c_sertanejo', number: 8, title: 'Repertório: 10 músicas para tocar já no primeiro mês', description: 'Arranjos comentados, do mais fácil ao mais difícil, com o ritmo e a força da mão já mapeados.', duration: '00:20', videoUrl: SAMPLE.meltdowns, createdAt: now },
-      { id: 'e_s9', courseId: 'c_sertanejo', number: 9, title: 'Cantar e tocar ao mesmo tempo (sem travar)', description: 'Respiração, posição da viola e simplificação do que é tocado para deixar espaço para a voz.', duration: '00:17', videoUrl: SAMPLE.fun, createdAt: now },
-      { id: 'e_s10', courseId: 'c_sertanejo', number: 10, title: 'Ensaio geral: a hora do show', description: 'Montagem do palco, passagem de som, contagem de entrada e a lista de conferência do dia da apresentação.', duration: '00:14', videoUrl: SAMPLE.blazes, createdAt: now },
+      { id: 'e_s1', courseId: 'c_sertanejo', number: 1, title: 'Boas-vindas: o mapa do caminho até o palco', description: 'O que você vai dominar ao fim do curso, o que precisa preparar e como montar uma rotina de treino que funciona.', duration: '00:12', videoUrl: SAMPLE.fun, createdAt: now },
+      { id: 'e_s2', courseId: 'c_sertanejo', number: 2, title: 'Postura corporal e o primeiro movimento', description: 'Como estar de pé, o alinhamento do corpo, a respiração e o primeiro passo sem travar o joelho.', duration: '00:15', videoUrl: SAMPLE.escapes, createdAt: now },
+      { id: 'e_s3', courseId: 'c_sertanejo', number: 3, title: 'Bases do movimento: pés, quadril e braços', description: 'Os movimentos que aparecem em toda dança e como treinar cada um sem criar vício postural.', duration: '00:14', videoUrl: SAMPLE.blazes, createdAt: now },
+      { id: 'e_s4', courseId: 'c_sertanejo', number: 4, title: 'O ritmo: contagem e musicalidade', description: 'Sentir a música, marcar a contagem com o corpo e conseguir mudar o ritmo no meio da dança.', duration: '00:18', videoUrl: SAMPLE.joyrides, createdAt: now },
+      { id: 'e_s5', courseId: 'c_sertanejo', number: 5, title: 'Expressividade: como o corpo conta a história', description: 'Transmitir emoção com gesto, olhar e intenção. É o que separa dançar de apenas se mover.', duration: '00:16', videoUrl: SAMPLE.meltdowns, createdAt: now },
+      { id: 'e_s6', courseId: 'c_sertanejo', number: 6, title: 'Flexibilidade e controle: aquecimento e alongamento', description: 'A sequência diária de alongamento que evita lesão e amplia o alcance dos seus movimentos.', duration: '00:13', videoUrl: SAMPLE.bunny, createdAt: now },
+      { id: 'e_s7', courseId: 'c_sertanejo', number: 7, title: 'Montando coreografia: os 3 passos de qualquer dança', description: 'Como criar uma coreografia do zero usando movimento, ritmo e repetição até ficar no corpo.', duration: '00:15', videoUrl: SAMPLE.escapes, createdAt: now },
+      { id: 'e_s8', courseId: 'c_sertanejo', number: 8, title: 'Repertório: 10 danças para dominar já no primeiro mês', description: 'Do mais simples ao mais desafiador, com a contagem e os pontos-chave de cada coreografia.', duration: '00:20', videoUrl: SAMPLE.meltdowns, createdAt: now },
+      { id: 'e_s9', courseId: 'c_sertanejo', number: 9, title: 'Improviso: dançar ao vivo sem travar', description: 'O que fazer quando você erra o passo, a música mudou ou entrou no palco atrasado.', duration: '00:17', videoUrl: SAMPLE.fun, createdAt: now },
+      { id: 'e_s10', courseId: 'c_sertanejo', number: 10, title: 'Ensaio geral: a hora do show', description: 'Marcação de posição no palco, passagem de som, contagem de entrada e a lista do dia da apresentação.', duration: '00:14', videoUrl: SAMPLE.blazes, createdAt: now },
       { id: 'e_v1', courseId: 'c_vaneira', number: 1, title: 'Boas-vindas: como formar e preparar seu grupo', description: 'Como montar a equipe, distribuir funções, escolher o repertório e organizar a agenda de ensaios.', duration: '00:11', videoUrl: SAMPLE.escapes, createdAt: now },
       { id: 'e_v2', courseId: 'c_vaneira', number: 2, title: 'O que é vaneira: origem, cultura e ritmo', description: 'A história do ritmo, o contexto de origem e por que ele virou palco nas universidades.', duration: '00:16', videoUrl: SAMPLE.joyrides, createdAt: now },
       { id: 'e_v3', courseId: 'c_vaneira', number: 3, title: 'Percussão de base: ganzá e pandeiro', description: 'A base rítmica que sustenta toda a música, com contagem e exercícios para tocar sozinho.', duration: '00:14', videoUrl: SAMPLE.meltdowns, createdAt: now },
