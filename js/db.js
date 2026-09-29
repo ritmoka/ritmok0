@@ -1,4 +1,4 @@
-﻿/* =========================================================
+/* =========================================================
    RitmoK - camada de dados
    ------------------------------------------------------------
    Funciona em DOIS modos automaticamente:
@@ -228,20 +228,37 @@ window.Store = (() => {
     }
   }
 
-  /** Progresso visivel para quem esta logado agora */
-  async function carregarProgresso() {
-    if (!fb) return [];
+  /** Relê do banco o progresso e os pagamentos do aluno (usado pelo botao
+      "Atualizar situacao", para nao depender so do listener ao vivo) */
+  async function recarregarMeus() {
+    if (!fb) return read();
+    const meus = await carregarMeus();
+    if (cache && meus.progress.length) cache.progress = meus.progress;
+    if (cache) cache.payments = meus.payments;
+    window.dispatchEvent(new CustomEvent('store:changed'));
+    return read();
+  }
+
+  /** Progresso e pagamentos visiveis para quem esta logado agora */
+  async function carregarMeus() {
+    const out = { progress: [], payments: [] };
+    if (!fb || !firebaseUser) return out;
+    const uid = firebaseUser.uid;
     try {
-      if (firebaseUser && isAdminEmail(firebaseUser.email)) return await fetchCollection('progress');
-      if (firebaseUser && firebaseUser.uid) {
-        const q = fb.fsMod.query(
-          fb.fsMod.collection(fb.db, 'progress'),
-          fb.fsMod.where('uid', '==', firebaseUser.uid));
-        const snap = await fb.fsMod.getDocs(q);
-        return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      if (isAdminEmail(firebaseUser.email)) {
+        out.progress = await fetchCollection('progress');
+        out.payments = await fetchCollection('payments');
+        return out;
       }
-    } catch (e) { /* sem permissao: segue sem progresso salvo */ }
-    return [];
+      // aluno: consulta filtrada pelo proprio uid
+      const [prog, pays] = await Promise.all([
+        fb.fsMod.getDocs(fb.fsMod.query(fb.fsMod.collection(fb.db, 'progress'), fb.fsMod.where('uid', '==', uid))),
+        fb.fsMod.getDocs(fb.fsMod.query(fb.fsMod.collection(fb.db, 'payments'), fb.fsMod.where('uid', '==', uid)))
+      ]);
+      out.progress = prog.docs.map(d => Object.assign({ id: d.id }, d.data()));
+      out.payments = pays.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    } catch (e) { /* sem permissao: segue sem historico */ }
+    return out;
   }
 
   async function loadAll() {
@@ -261,7 +278,7 @@ window.Store = (() => {
     };
 
     // progresso: o professor ve tudo; o aluno so o proprio (com filtro)
-    const testarMeuProgresso = () => carregarProgresso();
+    const testarMeuProgresso = () => carregarMeus().then(m => m.progress);
 
     const [courses, episodes, students, payments, progress, setDoc] = await Promise.all([
       testarPublico('courses'),
@@ -361,6 +378,10 @@ window.Store = (() => {
       const uid = firebaseUser.uid;
       const meus = fb.fsMod.query(colecao('progress'), fb.fsMod.where('uid', '==', uid));
       ear(meus, s => { cache.progress = lista(s); }, 'progress');
+      // o aluno acompanha o proprio pagamento ao vivo: quando o
+      // professor aprova, a tela muda sozinha sem recarregar
+      const meusPays = fb.fsMod.query(colecao('payments'), fb.fsMod.where('uid', '==', uid));
+      ear(meusPays, s => { cache.payments = lista(s); }, 'payments');
       unsubs.push(fb.fsMod.onSnapshot(
         ref('students', uid),
         s => {
@@ -1210,9 +1231,9 @@ window.Store = (() => {
           } else {
             await garantirPerfil(user);
             attachListeners();
-            // o progresso so pode ser lido depois de saber quem e o usuario
-            const prog = await carregarProgresso();
-            if (cache) { cache.progress = prog; }
+            // progresso e pagamento so podem ser lidos depois de saber quem e o usuario
+            const meus = await carregarMeus();
+            if (cache) { cache.progress = meus.progress; cache.payments = meus.payments; }
             save(d => {
               const t = d.students.find(x => x.id === user.uid);
               if (t) t.lastLogin = new Date().toISOString();
@@ -1289,7 +1310,7 @@ window.Store = (() => {
     signUp, loginStudent, createPayment, latestPayment, approvePayment, rejectPayment,
     setStudent, extendStudent, deleteStudent, hasCourseCode, grantCourseCode, changePassword,
     aprovarPresencial, virarPagante, acessoAoCurso, tipoDoCurso, restaurarExemplo,
-    planos, planoDe, periodoDe, migrarPlanos, numeroBR, bancoVazio: () => FIREBASE_ON && !!(cache && !cache.courses.length)
+    planos, planoDe, periodoDe, migrarPlanos, numeroBR, recarregarMeus, bancoVazio: () => FIREBASE_ON && !!(cache && !cache.courses.length)
   };
 })();
 

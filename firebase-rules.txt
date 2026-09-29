@@ -56,11 +56,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ---- Pagamentos: o aluno cria o proprio pedido, so o professor le/aprova ----
+    // ---- Pagamentos: o aluno cria o proprio pedido e so ve o dele.
+    //      Quem aprova (e o professor) le tudo. ----
     match /payments/{id} {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid;
-      allow read, update, delete: if isAdmin();
+      allow read: if isAdmin()
+        || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
 
     // ---- Progresso das aulas: dono grava, professor acompanha todos ----

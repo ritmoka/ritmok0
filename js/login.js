@@ -96,6 +96,9 @@
 
       // aluno presencial: vai para a tela de status, nao para os planos
       if (r.student.presencial) {
+        // veio do paywall? ai simula o upgrade
+        const up = new URLSearchParams(location.search).get('upgrade');
+        if (up) { viewUpgrade(up); return; }
         viewAguardando();
         return;
       }
@@ -411,20 +414,52 @@
 
   function viewPending() {
     step = 'pending';
-    const pay = lastPayment || S.latestPayment(lastEmail, 'pendente');
+    const pay = lastPayment || S.latestPayment(lastEmail, 'pendente') || S.latestPayment(lastEmail, 'aprovado');
     if (!pay) { viewLogin(); return; }
+
+    const recarregar = async () => {
+      // relê do banco: garante o resultado mesmo sem o aviso ao vivo
+      await S.recarregarMeus();
+      const p = S.allPayments().find(x => x.id === pay.id);
+      if (p && p.status === 'aprovado') {
+        const st = S.currentStudent();
+        if (st && st.presencial) { S.setStudent(st.id, { presencial: false, aprovado: false, obs: '' }); }
+        toast('Pagamento aprovado! Boas aulas.', 'ok');
+        setTimeout(() => location.href = nextUrl(), 1000);
+        return true;
+      }
+      if (p && p.status === 'recusado') {
+        toast('Este pagamento foi recusado. Fale com o professor.', '');
+        return true;
+      }
+      return false;
+    };
+
+    const statusBadge = () => {
+      const p = S.allPayments().find(x => x.id === pay.id) || pay;
+      const mapa = {
+        pendente: ['badge-pendente', 'Aguardando aprovação'],
+        aprovado: ['badge-ativo', 'Aprovado — acesso liberado'],
+        recusado: ['badge-vencido', 'Recusado']
+      }[p.status] || ['badge-neutro', p.status];
+      return el('span', { class: 'badge ' + mapa[0], text: mapa[1] });
+    };
 
     shell([
       el('div', { class: 'success-ico', html: UI.icons.check }),
       el('h1', { text: 'Pagamento em análise', style: { textAlign: 'center' } }),
-      el('p', { class: 'sub', style: { textAlign: 'center' }, text: 'Enviamos sua solicitação ao professor. Você será liberado assim que for aprovada.' }),
-      el('div', { class: 'card-box', style: { margin: '0 0 1.2rem' } }, [
+      el('p', { class: 'sub', style: { textAlign: 'center' }, id: 'msg-pagamento' },
+        'Enviamos sua solicitação ao professor. Esta tela atualiza sozinha assim que for aprovada.'),
+      el('div', { class: 'card-box', style: { margin: '0 0 1.2rem' }, id: 'box-pagamento' }, [
         kv('Plano', pay.planName),
         kv('Valor', money(pay.amount)),
         kv('Forma de pagamento', pay.methodName),
         kv('Código de referência', pay.reference),
         kv('Enviado em', UI.dateTimeBR(pay.createdAt)),
-        kv('Situação', 'Aguardando aprovação')
+        el('div', { style: { display: 'flex', justifyContent: 'space-between', padding: '.45rem 0', fontSize: '.9rem' } }, [
+          el('span', { style: { color: 'var(--muted)' }, text: 'Situação' }),
+          statusBadge()
+        ])
       ]),
       el('ol', { class: 'steps' }, [
         el('li', { text: 'Realize o pagamento usando os dados gerados.' }),
@@ -433,15 +468,35 @@
         el('li', { text: 'Você entra e assiste a todas as aulas.' })
       ]),
       el('button', {
-        class: 'btn btn-primary btn-block', text: 'Atualizar situação',
-        onclick: () => {
-          const p = S.read().payments.find(x => x.id === pay.id);
-          if (p && p.status === 'aprovado') { toast('Pagamento aprovado! Boas aulas.', 'ok'); setTimeout(() => location.href = nextUrl(), 800); }
-          else { toast('Ainda aguardando aprovação do professor.', ''); }
+        class: 'btn btn-primary btn-block', text: 'Atualizar situação', id: 'btn-situacao',
+        onclick: async () => {
+          const b = qs('#btn-situacao');
+          if (b) { b.disabled = true; b.textContent = 'Verificando…'; }
+          const ok = await recarregar();
+          if (!ok) toast('Ainda aguardando aprovação do professor.', '');
+          if (ok && b) { b.disabled = false; b.textContent = 'Atualizar situação'; }
         }
       }),
       el('button', { class: 'btn btn-outline btn-block', style: { marginTop: '.6rem' }, text: 'Voltar ao início', onclick: () => location.href = 'index.html' })
     ], true);
+
+    // reage sozinho quando o professor aprovar
+    const vigiar = () => {
+      const p = S.allPayments().find(x => x.id === pay.id);
+      const box = qs('#box-pagamento');
+      const msg = qs('#msg-pagamento');
+      if (!box || !p) return;
+      const span = box.querySelector('.badge');
+      if (span) span.replaceWith(statusBadge());
+      if (p.status === 'aprovado') {
+        if (msg) msg.textContent = 'Pagamento aprovado! Prepare-se que as aulas já estão liberadas.';
+        if (qs('#btn-situacao')) qs('#btn-situacao').textContent = 'Entrar e assistir';
+      }
+    };
+    window.addEventListener('store:changed', vigiar);
+    vigiar();
+    // busca o status atual assim que abre a tela
+    if (pay.status !== 'aprovado') S.recarregarMeus().then(vigiar).catch(() => { });
   }
 
   function kv(k, v) {
@@ -496,7 +551,14 @@
       const st = S.currentStudent();
       if (st && st.presencial) { viewAguardando(); return; }
       if (st && S.statusOf(st).key === 'ativo') { viewActive(); return; }
-      if (st) { lastEmail = st.email; viewPlans(); return; }
+      if (st) {
+        lastEmail = st.email;
+        // tem pagamento na fila? mostra o status em vez de jogar nos planos
+        if (S.latestPayment(st.email, 'pendente')) { viewPending(); return; }
+        if (S.latestPayment(st.email, 'aprovado')) { viewActive(); return; }
+        viewPlans();
+        return;
+      }
       S.logout();
     }
 
