@@ -165,16 +165,36 @@ const UI = (() => {
 
     host.appendChild(el('a', { class: 'logo', href: 'index.html', html: logo + `<span>${esc(brand)}</span>` }));
 
-    const links = el('nav', { class: 'nav-links' });
+    const links = el('nav', { class: 'nav-links', id: 'nav-links' });
     links.appendChild(el('a', { href: 'index.html', class: active === 'inicio' ? 'active' : '', text: 'Início' }));
     links.appendChild(el('a', { href: 'index.html#catalogo', text: 'Catálogo' }));
     if (session && session.role === 'student') {
       links.appendChild(el('a', { href: 'index.html#progresso', text: 'Minha lista' }));
     }
-    if (session && session.role === 'admin') {
-      links.appendChild(el('a', { href: 'admin.html', text: 'Painel do professor' }));
-    }
+    // o professor precisa achar o painel sem digitar admin.html:
+    // o link aparece sempre e a propria tela do painel pede a senha
+    links.appendChild(el('a', {
+      href: 'admin.html', class: active === 'admin' ? 'active' : '',
+      title: 'Gerenciar cursos, aulas, alunos e pagamentos', text: 'Painel do professor'
+    }));
+
+    // no celular os links ficam escondidos: o botao de menu abre a lista
+    const menu = el('button', {
+      class: 'icon-btn nav-menu', 'aria-label': 'Abrir menu', 'aria-expanded': 'false',
+      html: icons.menu || '<svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>',
+      onclick: e => {
+        e.stopPropagation();
+        const aberta = links.classList.toggle('open');
+        menu.setAttribute('aria-expanded', aberta ? 'true' : 'false');
+      }
+    });
+
     host.appendChild(links);
+    host.appendChild(menu);
+    document.addEventListener('click', () => {
+      links.classList.remove('open');
+      menu.setAttribute('aria-expanded', 'false');
+    });
     host.appendChild(el('div', { class: 'nav-spacer' }));
 
     const search = el('div', { class: 'search-box' });

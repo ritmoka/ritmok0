@@ -17,6 +17,7 @@
   ];
 
   let tab = 'resumo';
+  let painelObservando = false;
   let filterCourse = '';
 
   /* ============================ PORTÃO ============================ */
@@ -39,6 +40,22 @@
     qs('#top-name').textContent = 'Painel do Professor — ' + (S.settings().brandName || 'RitmoK');
     renderTabs();
     render();
+    // Os dados chegam do Firestore depois que a tela ja desenhou: sem isto
+    // o professor abria o painel e via "0 alunos" e "0 pagamentos".
+    if (!painelObservando) {
+      painelObservando = true;
+      let pendente = null;
+      window.addEventListener('store:changed', () => {
+        clearTimeout(pendente);
+        pendente = setTimeout(() => {
+          // nao redesenhar enquanto o professor esta preenchendo um campo
+          const a = document.activeElement;
+          if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+          if (qs('#gate').style.display !== 'none') return;
+          render();
+        }, 400);
+      });
+    }
   }
 
   qs('#gate-form').addEventListener('submit', async e => {

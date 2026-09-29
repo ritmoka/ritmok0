@@ -121,11 +121,15 @@
         'Ainda não tem conta? ',
         el('a', { href: '#', text: 'Criar conta grátis', onclick: e => { e.preventDefault(); viewSignup(); } })
       ]),
-      el('div', { class: 'auth-foot', style: { fontSize: '.82rem' } }, [
-        'É professor? ',
-        el('a', { href: 'admin.html', text: 'Acesse o painel' }),
-        ' · ',
-        el('a', { href: 'index.html', text: 'Ver catálogo' })
+      el('div', { class: 'prof-box' }, [
+        el('div', {}, [
+          el('strong', { text: 'Você é o professor?' }),
+          el('small', { text: 'Gerencie cursos, aulas, alunos e pagamentos.' })
+        ]),
+        el('button', {
+          class: 'btn btn-outline', text: 'Abrir painel',
+          onclick: () => location.href = 'admin.html'
+        })
       ])
     ]);
     setTimeout(() => email.focus(), 60);

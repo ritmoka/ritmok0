@@ -432,14 +432,24 @@ window.Store = (() => {
     const colecao = c => fb.fsMod.collection(fb.db, c);
     const lista = snap => snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
 
+    /* O que o listener entrega JA e o estado da nuvem. Se nao marcarmos
+       aqui, o proximo save() acha que e alteracao local e reescreve a
+       colecao inteira -- era o que fazia o painel mostrar "0 alunos" e o
+       app gravar o banco todo a cada abertura. */
+    function marcarComoNuvem(coll, itens) {
+      if (!cache) return;
+      if (!lastSynced) lastSynced = clone(cache);
+      lastSynced[coll] = clone(itens);
+    }
+
     // marca o que ja existe na nuvem
     [colecao('courses'), colecao('episodes')].forEach(q => {
       unsubs.push(fb.fsMod.onSnapshot(q, s => { s.docs.forEach(d => existentes.add(q.id + '/' + d.id)); }));
     });
 
     // publicos
-    ear(colecao('courses'), s => { cache.courses = lista(s); }, 'courses');
-    ear(colecao('episodes'), s => { cache.episodes = lista(s); }, 'episodes');
+    ear(colecao('courses'), s => { const d = lista(s); marcarComoNuvem('courses', d); cache.courses = d; }, 'courses');
+    ear(colecao('episodes'), s => { const d = lista(s); marcarComoNuvem('episodes', d); cache.episodes = d; }, 'episodes');
     ear(ref('settings', 'app'), s => {
       if (s.exists() && cache) {
         existentes.add('settings/app');
@@ -448,24 +458,37 @@ window.Store = (() => {
         delete d.planos;
         cache.settings = Object.assign({}, seed().settings, d);
         if (Array.isArray(planos) && planos.length) cache.plans = planos;
+        if (lastSynced) { lastSynced.settings = clone(cache.settings); lastSynced.plans = clone(cache.plans); }
       }
     }, 'settings');
 
     // dados sensiveis: so quem tem permissao assina o listener
     if (ehProf) {
-      ear(colecao('students'), s => { cache.students = lista(s); s.docs.forEach(d => existentes.add('students/' + d.id)); }, 'students');
-      ear(colecao('payments'), s => { cache.payments = lista(s); }, 'payments');
-      ear(colecao('progress'), s => { cache.progress = lista(s); }, 'progress');
+      ear(colecao('students'), s => {
+        const d = lista(s);
+        marcarComoNuvem('students', d);
+        cache.students = d;
+        s.docs.forEach(x => existentes.add('students/' + x.id));
+      }, 'students');
+      ear(colecao('payments'), s => { const d = lista(s); marcarComoNuvem('payments', d); cache.payments = d; }, 'payments');
+      ear(colecao('progress'), s => { const d = lista(s); marcarComoNuvem('progress', d); cache.progress = d; }, 'progress');
     } else if (logado) {
       // O proprio aluno: consulta filtrada pelo proprio uid.
       // Sem o filtro, o Firestore negaria a leitura da colecao inteira.
       const uid = firebaseUser.uid;
       const meus = fb.fsMod.query(colecao('progress'), fb.fsMod.where('uid', '==', uid));
-      ear(meus, s => { cache.progress = lista(s); }, 'progress');
+      ear(meus, s => { const d = lista(s); marcarComoNuvem('progress', d); cache.progress = d; }, 'progress');
       // o aluno acompanha o proprio pagamento ao vivo: quando o
       // professor aprova, a tela muda sozinha sem recarregar
       const meusPays = fb.fsMod.query(colecao('payments'), fb.fsMod.where('uid', '==', uid));
-      ear(meusPays, s => { cache.payments = juntarRecemCriados(lista(s)); }, 'payments');
+      ear(meusPays, s => {
+        // so o que veio da nuvem entra no lastSynced: o pagamento
+        // recem-criado precisa continuar parecendo alteracao local para
+        // realmente ser gravado
+        const daNuvem = lista(s);
+        marcarComoNuvem('payments', daNuvem);
+        cache.payments = juntarRecemCriados(daNuvem);
+      }, 'payments');
       unsubs.push(fb.fsMod.onSnapshot(
         ref('students', uid),
         s => {
@@ -475,6 +498,12 @@ window.Store = (() => {
             const doc = Object.assign({ id: uid }, s.data());
             const i = cache.students.findIndex(x => x.id === uid);
             if (i >= 0) cache.students[i] = doc; else cache.students.push(doc);
+            if (lastSynced) {
+              const naNuvem = lastSynced.students || [];
+              const j = naNuvem.findIndex(x => x.id === uid);
+              if (j >= 0) naNuvem[j] = doc; else naNuvem.push(doc);
+              lastSynced.students = naNuvem;
+            }
             window.dispatchEvent(new CustomEvent('store:changed'));
           }
         },
