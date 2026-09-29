@@ -56,7 +56,7 @@ window.Store = (() => {
     const courses = [
       {
         id: 'c_sertanejo', title: 'Sertanejo do Zero ao Palco',
-        tagline: 'Viola, sanfona e ritmo — o caminho completo até tocar com a banda',
+        tagline: 'Violão e dança — do primeiro acorde ao palco',
         description: 'Curso completo de sertanejo para quem quer tocar de verdade. Começamos pelo zero: como segurar a viola, como afinar, primeiros acordes e o ritmo que sustenta a música. Depois entram sanfona, baixinho e percussão, harmonia aplicada para não errar na hora de trocar de acorde, um repertório com 10 músicas para tocar já no primeiro mês e, por último, a técnica de cantar e tocar ao mesmo tempo. Todas as aulas são comentadas nota a nota, com partitura na tela e exercícios práticos para você tocar junto.',
         category: 'Sertanejo', instructor: 'Prof. Kennedy', level: 'Do zero ao palco',
         year: 2026, rating: 4.9, featured: true, trending: true,
