@@ -59,6 +59,7 @@ window.Store = (() => {
         tagline: 'Dança — do primeiro passo ao palco',
         description: 'Curso completo de dança para quem quer dançar de verdade. Começamos pelo zero: postura corporal, o primeiro movimento e o básico de ritmo. Depois entram expressividade, flexibilidade, condicionamento e a montagem de coreografia. Cada aula traz a explicação passo a passo, exercícios para você praticar em casa e o repertório comentado. Ao final você sai com danças prontas para apresentar.',
         category: 'Dança', instructor: 'Prof. Kennedy', level: 'Do zero ao palco',
+        acesso: 'assinatura',
         year: 2026, rating: 4.9, featured: true, trending: true,
         cover: '', poster: '', backdrop: '', code: '', createdAt: now
       },
@@ -67,6 +68,7 @@ window.Store = (() => {
         tagline: 'O ritmo, a percussão e a coreografia para o seu grupo universitário montar a apresentação',
         description: 'Curso de vaneira para grupos universitários: a origem e a cultura do ritmo, percussão de base, coreografia em dupla e em roda, e como organizar um ensaio que chega pronto ao palco. Ideal para projetos de extensão, coletivos culturais, apresentações de fim de semestre e grupos de dança que se apresentam na universidade.',
         category: 'Vaneira', instructor: 'Prof. Kennedy', level: 'Todos os níveis',
+        acesso: 'presencial',
         year: 2026, rating: 4.7, featured: false, trending: true,
         cover: '', poster: '', backdrop: '', code: '', createdAt: now
       }
