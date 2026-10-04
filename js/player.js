@@ -100,13 +100,17 @@
     // curso com código de acesso
     if (!S.hasCourseCode(ep.courseId)) {
       const c = S.course(ep.courseId) || { title: 'Este curso' };
-      document.body.innerHTML = `<div class="login-gate"><div class="auth-card">
+      // escreve dentro do <main>: trocar o body inteiro apagava a
+      // estrutura da pagina junto
+      const alvo = qs('#principal') || document.body;
+      if (alvo !== document.body) { alvo.style.display = ''; }
+      alvo.innerHTML = `<div class="login-gate"><div class="auth-card">
         <h1>Código necessário</h1>
         <p class="sub">"${UI.esc(c.title)}" é um curso restrito. Digite o código fornecido pelo professor para assistir.</p>
         <div class="auth-error" id="code-error"></div>
         <form id="code-form">
-          <div class="field"><label>Código de acesso</label>
-          <input class="input" type="text" id="code-input" placeholder="Ex.: TURMA2026" autocomplete="off"></div>
+          <div class="field"><label for="code-input">Código de acesso</label>
+          <input class="input" type="text" id="code-input" placeholder="Ex.: TURMA2026" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>
           <button class="btn btn-primary btn-block" type="submit">Liberar acesso</button>
         </form>
         <a class="btn btn-outline btn-block" style="margin-top:.6rem" href="index.html">Voltar ao catálogo</a>

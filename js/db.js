@@ -970,25 +970,62 @@ window.Store = (() => {
   /* =========================================================
      CODIGO DE ACESSO POR CURSO
      ========================================================= */
+  /* Onde guardamos o codigo que o aluno ja digitou.
+     Fica neste navegador de proposito: cada aluno usa o codigo no
+     aparelho dele. Antes isso vivia so na memoria do Firestore, que
+     recarrega do zero a cada pagina -- o codigo aceito sumia e a
+     tela voltava a pedir o codigo. */
+  const LS_CODES = 'ritmok-codigos';
+
+  function lerCodigosLocais() {
+    try {
+      const v = JSON.parse(localStorage.getItem(LS_CODES) || '{}');
+      return (v && typeof v === 'object') ? v : {};
+    } catch (e) { return {}; }
+  }
+
+  function gravarCodigosLocais(obj) {
+    try { localStorage.setItem(LS_CODES, JSON.stringify(obj)); } catch (e) { }
+  }
+
+  // ignora caixa e espacos: "Vip2026" e "vip2026" sao o mesmo codigo
+  const mesmoCodigo = (a, b) =>
+    String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+
   function hasCourseCode(courseId, email) {
     const c = course(courseId);
-    if (!c || !c.code) return true;
+    if (!c || !c.code) return true;               // curso sem codigo: livre
     const s = session();
-    const codes = read().accessCodes || {};
-    const mine = codes[String((s && s.email) || email || '').toLowerCase()];
-    return !!(mine && mine[courseId] === c.code);
+    const who = String((s && s.email) || email || '').toLowerCase();
+    if (!who) return false;
+
+    // 1) memoria desta aba
+    const naMemoria = (read().accessCodes || {})[who];
+    if (naMemoria && mesmoCodigo(naMemoria[courseId], c.code)) return true;
+
+    // 2) liberacao guardada neste navegador
+    const noAparelho = (lerCodigosLocais()[who] || {})[courseId];
+    return mesmoCodigo(noAparelho, c.code);
   }
 
   function grantCourseCode(courseId, code, email) {
     const c = course(courseId);
     const s = session();
     const who = String((s && s.email) || email || '').toLowerCase();
-    if (!who || !c || !c.code || c.code !== String(code || '').trim()) return false;
+    if (!who || !c || !c.code || !mesmoCodigo(code, c.code)) return false;
+
+    // memoria (vale enquanto a aba estiver aberta)
     save(d => {
       if (!d.accessCodes) d.accessCodes = {};
       if (!d.accessCodes[who]) d.accessCodes[who] = {};
       d.accessCodes[who][courseId] = c.code;
     });
+
+    // e neste navegador, que sobrevive ao F5
+    const todos = lerCodigosLocais();
+    if (!todos[who]) todos[who] = {};
+    todos[who][courseId] = c.code;
+    gravarCodigosLocais(todos);
     return true;
   }
 
