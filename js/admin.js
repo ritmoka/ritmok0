@@ -305,6 +305,7 @@
       year: input({ type: 'text', placeholder: '2026' }),
       rating: input({ type: 'text', placeholder: '4.8' }),
       code: input({ placeholder: 'Deixe vazio = acesso livre' }),
+      seloAcesso: input({ placeholder: 'Ex.: VIP — só quem tiver este selo entra' }),
       cover: input({ placeholder: 'URL da imagem 16:9 (opcional)' }),
       poster: input({ placeholder: 'URL do pôster 2:3 (opcional)' }),
       videoDemo: input({ type: 'text', placeholder: 'Link do vídeo de demonstração (MP4 ou YouTube)' }),
@@ -350,6 +351,7 @@
         year: S.numeroBR(f.year.value, new Date().getFullYear()),
         rating: Math.min(5, Math.max(0, S.numeroBR(f.rating.value, 4.5))),
         code: f.code.value.trim(),
+        seloAcesso: f.seloAcesso.value.trim(),
         cover: f.cover.value.trim(),
         poster: f.poster.value.trim(),
         videoDemo: f.videoDemo.value.trim(),
@@ -388,6 +390,7 @@
         field('Ano', f.year),
         field('Nota (0 a 5)', f.rating),
         field('Código de acesso', f.code, 'Se preencher, o aluno precisa digitar este código para assistir.', true),
+        field('Selo necessário para entrar', f.seloAcesso, 'Ex.: VIP. Deixe vazio para o curso seguir a regra normal (assinatura ou presencial).', true),
         field('Imagem de capa (URL)', f.cover, 'Deixe vazio para gerar uma capa automática.', true),
         field('Pôster vertical (URL)', f.poster, null, true),
         field('Descrição', f.description, 'Explique o que o aluno vai aprender.', true),
@@ -414,6 +417,7 @@
         f.instructor.value = c.instructor || ''; f.category.value = c.category || '';
         f.level.value = c.level || ''; f.year.value = c.year || ''; f.rating.value = c.rating || '';
         f.code.value = c.code || ''; f.cover.value = c.cover || ''; f.poster.value = c.poster || '';
+        f.seloAcesso.value = c.seloAcesso || '';
         f.videoDemo.value = c.videoDemo || '';
         demoV.checked = !!c.demoVertical;
         f.description.value = c.description || '';
@@ -667,7 +671,11 @@
         el('td', {}, [
           el('div', { style: { display: 'flex', gap: '.6rem', alignItems: 'center' } }, [
             el('img', { src: Art.avatar(s.name), style: { width: '34px', height: '34px', borderRadius: '50%' }, alt: '' }),
-            el('div', {}, [el('strong', { text: s.name || '—' }), el('br'), el('small', { style: { color: 'var(--muted)' }, text: s.email })])
+            el('div', {}, [
+              el('strong', { text: s.name || '—' }),
+              s.selo ? el('span', { class: 'badge badge-selo', style: { marginLeft: '.4rem' }, text: s.selo }) : null,
+              el('br'), el('small', { style: { color: 'var(--muted)' }, text: s.email })
+            ])
           ])
         ]),
         el('td', {}, el('span', {
@@ -687,6 +695,7 @@
             ? el('button', { class: 'mini', text: '→ Virar pagante', title: 'Libera a assinatura online e remove o acesso presencial', onclick: () => { if (!confirmBox('Transformar ' + s.name + ' em aluno pagante? O acesso presencial será removido.')) return; S.virarPagante(s.id, s.planId); toast('Agora é aluno pagante.', 'ok'); render(); } })
             : el('button', { class: 'mini', text: '→ Presencial', title: 'Mover para aluno presencial (sem mensalidade)', onclick: () => { S.aprovarPresencial(s.id, true, ''); toast('Movido para presencial.', 'ok'); render(); } }),
           el('button', { class: 'mini', text: s.blocked ? 'Desbloquear' : 'Bloquear', onclick: () => { S.setStudent(s.id, { blocked: !s.blocked }); render(); } }),
+          el('button', { class: 'mini', text: s.selo ? 'Tirar selo' : 'Dar selo', title: 'Selo que o aluno vê na própria conta', onclick: () => alternarSelo(s) }),
           el('button', { class: 'mini', text: 'Editar', onclick: () => editStudent(s) }),
           el('button', { class: 'mini danger', text: 'Excluir', onclick: () => {
             if (!confirmBox('Excluir o aluno ' + s.name + '? O progresso dele também será removido.')) return;
@@ -704,6 +713,8 @@
       const pass = input({ placeholder: 'nova senha (opcional)' });
       const plan = select({ value: s.planId }, S.planos().map(p => ({ value: p.id, label: p.name })));
       const exp = input({ type: 'date', value: (s.expiresAt || '').slice(0, 10) });
+      // selo: texto livre que voce escreve e que o aluno ve na conta dele
+      const selo = input({ value: s.selo || '', placeholder: 'Ex.: VIP, Turma 2026,Indicado' });
       const dlg = el('div', { class: 'overlay open' }, el('div', { class: 'modal', style: { maxWidth: '520px' } }, [
         el('div', { class: 'modal-body', style: { paddingTop: '1.6rem' } }, [
           el('h2', { text: 'Editar aluno', style: { fontSize: '1.4rem' } }),
@@ -711,11 +722,12 @@
             field('Nome', name, null, true),
             field('Nova senha', pass, null, true),
             field('Plano', plan, null, true),
-            field('Vencimento', exp, null, true)
+            field('Vencimento', exp, null, true),
+            field('Selo do aluno', selo, 'Aparece na lista aqui e na conta do próprio aluno. Deixe vazio para remover.', true)
           ]),
           el('div', { style: { display: 'flex', gap: '.6rem', marginTop: '.6rem' } }, [
             el('button', { class: 'btn btn-primary', text: 'Salvar', onclick: () => {
-              const patch = { name: name.value.trim(), planId: plan.value };
+              const patch = { name: name.value.trim(), planId: plan.value, selo: selo.value.trim() };
               if (pass.value) patch.password = pass.value;
               if (exp.value) patch.expiresAt = new Date(exp.value + 'T23:59:59').toISOString();
               S.setStudent(s.id, patch);
@@ -727,6 +739,14 @@
       ]));
       document.body.appendChild(dlg);
       dlg.addEventListener('click', e => { if (e.target === dlg) dlg.remove(); });
+    }
+
+    /* Atalho para dar ou tirar o selo sem abrir a edicao inteira */
+    function alternarSelo(s) {
+      const tem = !!s.selo;
+      S.setStudent(s.id, { selo: tem ? '' : 'VIP' });
+      toast(tem ? 'Selo removido.' : 'Selo VIP aplicado.', 'ok');
+      render();
     }
   }
 

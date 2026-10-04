@@ -97,8 +97,8 @@
       return;
     }
 
-    // curso com código de acesso
-    if (!S.hasCourseCode(ep.courseId)) {
+    // curso com código de acesso (quando o curso nao é liberado por selo)
+    if (!S.hasCourseCode(ep.courseId) && !S.course(ep.courseId).seloAcesso) {
       const c = S.course(ep.courseId) || { title: 'Este curso' };
       // escreve dentro do <main>: trocar o body inteiro apagava a
       // estrutura da pagina junto

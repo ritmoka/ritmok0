@@ -779,6 +779,19 @@ window.Store = (() => {
 
     if (student.blocked) return { ok: false, motivo: 'bloqueado', reason: 'Seu acesso está bloqueado. Fale com o professor.', upgrade: false };
 
+    /* ---- curso VIP: so entra quem tem o selo ----
+       Ex.: seloAcesso = 'VIP' -- apenas os alunos marcados com esse
+       selo pelo professor assistem, pagando ou nao. */
+    const seloNecessario = String(c.seloAcesso || '').trim();
+    if (seloNecessario && !mesmoCodigo(student.selo, seloNecessario)) {
+      return {
+        ok: false, motivo: 'semSelo', upgrade: false, curso: c,
+        reason: student.selo
+          ? 'Este curso é exclusivo para o selo "' + seloNecessario + '".'
+          : 'Este curso é exclusivo para o selo "' + seloNecessario + '". Fale com o professor para conseguir o seu.'
+      };
+    }
+
     const tipo = tipoDoCurso(c);
 
     // ---- aluno presencial ----
@@ -1050,7 +1063,11 @@ window.Store = (() => {
       aprovado: false,
       // observacoes livres do professor (ex.: turma, data da inscricao)
       obs: '',
-      blocked: false, createdAt: new Date().toISOString(), lastLogin: null
+      blocked: false,
+      // selo escrito pelo professor. O aluno nao pode alterar isto: as
+      // regras do Firestore so deixam o aluno mexer em nome e ultimo acesso.
+      selo: '',
+      createdAt: new Date().toISOString(), lastLogin: null
     };
   }
 
@@ -1260,6 +1277,14 @@ window.Store = (() => {
      ALUNOS
      ========================================================= */
   function setStudent(id, patch) {
+    // Quem nao e o professor so pode mexer no proprio nome. As regras do
+    // Firestore ja impediam o resto de gravar, mas aqui a tela ficaria
+    // mostrando (por exemplo) um selo que o banco nunca aceitou.
+    if (!adminSession()) {
+      const s = session();
+      if (!s || s.role !== 'student' || s.uid !== id) return read().students.find(x => x.id === id);
+      patch = { name: patch && patch.name };
+    }
     save(d => {
       const s = d.students.find(x => x.id === id);
       if (s) Object.assign(s, patch);

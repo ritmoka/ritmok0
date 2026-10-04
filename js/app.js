@@ -391,9 +391,23 @@
       return box;
     }
 
+    // Sessao de aluno sem o cadastro carregado ainda (acontece logo apos
+    // entrar): antes quebrava a tela inteira em branco.
+    if (!st) {
+      box.append(
+        el('h2', { text: 'Minha lista' }),
+        el('p', { class: 'sub', style: { margin: '0 0 1rem' } }, 'Carregando sua conta…')
+      );
+      return box;
+    }
+
     const status = S.statusOf(st);
     box.append(
       el('h2', { text: 'Olá, ' + (st.name || '').split(' ')[0] + '!', style: { margin: '0 0 .2rem', fontSize: '1.3rem' } }),
+      // selo que o professor aplicou neste aluno
+      st.selo ? el('div', { style: { margin: '0 0 .6rem' } }, [
+        el('span', { class: 'badge badge-selo', style: { fontSize: '.82rem', padding: '.3rem .7rem' }, text: st.selo })
+      ]) : null,
       el('p', { style: { margin: '0 0 1rem', color: 'var(--muted)', fontSize: '.9rem' } }, [
         'Seu acesso: ',
         el('span', { class: 'badge badge-' + status.key, text: status.label })
