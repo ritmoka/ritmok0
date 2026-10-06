@@ -494,6 +494,26 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .bar { height: 6px; background: var(--bg-4); border-radius: 6px; overflow: hidden; margin-bottom: 1.2rem; }
 .bar i { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
 .player-actions { display: flex; gap: .7rem; flex-wrap: wrap; align-items: center; }
+.player-actions .btn { white-space: nowrap; }
+
+/* ---- velocidade do video ---- */
+.velo {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--bg-3); overflow: hidden; height: 34px;
+}
+.velo-btn, .velo-atual {
+  background: none; border: 0; color: var(--text);
+  font-family: inherit; cursor: pointer; padding: 0 .7rem;
+  display: grid; place-items: center; font-weight: 700; font-size: .95rem;
+}
+.velo-btn:hover, .velo-atual:hover { background: rgba(255, 255, 255, .07); }
+.velo-atual { min-width: 50px; font-variant-numeric: tabular-nums; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+.velo-btn:focus-visible, .velo-atual:focus-visible { outline: 2px solid var(--accent-texto); outline-offset: -2px; }
+@media (max-width: 560px) {
+  .velo { height: 32px; }
+  .velo-btn, .velo-atual { padding: 0 .55rem; }
+}
 .ep-toggle-btn { display: flex; align-items: center; gap: .6rem; margin: .4rem 0 1.2rem; color: var(--muted); font-size: .88rem; }
 .ep-sidebar { background: var(--bg-2); border-left: 1px solid var(--line); padding: 1.2rem; overflow-y: auto; max-height: 100vh; position: sticky; top: 0; }
 .ep-sidebar h3 { margin: 0 0 .2rem; font-size: 1.05rem; }

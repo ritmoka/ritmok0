@@ -15,6 +15,7 @@
     index: -1,
     kind: 'mp4',
     yt: null,          // player do YouTube
+    velocidade: 1,     // preferencia de reproducao
     lastSaved: 0,
     isSeeking: false
   };
@@ -242,6 +243,8 @@
     }
 
     video.addEventListener('loadedmetadata', () => {
+      // reaplica a velocidade escolhida (o navegador comeca sempre em 1x)
+      try { video.playbackRate = state.velocidade; } catch (e) { }
       if (startAt > 10 && startAt < video.duration - 10) {
         video.currentTime = startAt;
         toast('Retomando de ' + timecode(startAt) + ' — clique em "Recomeçar" se preferir do zero.');
@@ -327,6 +330,8 @@
           events: {
             onReady: e => {
               const dur = e.target.getDuration() || 0;
+              // o YouTube comeca em 1x: reaplicamos a preferencia
+              try { e.target.setPlaybackRate(state.velocidade); } catch (er) { }
               updateBar(startAt, dur);
               if (startAt > 10) toast('Retomando de ' + timecode(startAt) + '.');
             },
@@ -414,6 +419,85 @@
       const v = qs('#video');
       if (v) { S.saveProgress(state.episodeId, 0, v.duration || 0, false); v.currentTime = 0; updateBar(0, v.duration || 0); }
     };
+
+    /* ============================ VELOCIDADE ============================ */
+    // Passos usuais: 0,5x para decorar movimento, 1,25x e 1,5x
+    // para rever sem perder detalhe.
+    const VELOS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+    const VELOS_ROTULO = { 1: 'Normal' };
+
+    function indiceDaVelocidade(v) {
+      const alvo = Number(v) || 1;
+      let melhor = 0, diff = Infinity;
+      VELOS.forEach((x, i) => {
+        const d = Math.abs(x - alvo);
+        if (d < diff) { diff = d; melhor = i; }
+      });
+      return melhor;
+    }
+
+    // devolve a velocidade valida (0,5 a 2), nunca o indice da lista
+    function normalizarVelocidade(v) {
+      return VELOS[indiceDaVelocidade(v)];
+    }
+
+    function mostrarVelocidade() {
+      const r = normalizarVelocidade(state.velocidade);
+      const btn = qs('#btn-velo');
+      if (btn) {
+        const rotulo = String(r).replace('.', ',');
+        btn.textContent = rotulo + '×';
+        btn.title = 'Velocidade: ' + (VELOS_ROTULO[r] || rotulo + '×');
+        btn.setAttribute('aria-label', 'Velocidade atual ' + rotulo + ' vezes. Clique para trocar.');
+      }
+    }
+
+    function aplicarVelocidade(v) {
+      const r = normalizarVelocidade(v);
+      state.velocidade = r;
+
+      // MP4/HLS: o elemento nativo
+      const video = qs('#video');
+      if (video) {
+        try { video.playbackRate = r; } catch (e) { }
+      }
+      // YouTube: so a API do player aceita mudar a velocidade
+      if (state.yt) {
+        try { state.yt.setPlaybackRate(r); } catch (e) { }
+      }
+
+      // guardamos para a proxima aula manter a preferencia
+      try { localStorage.setItem('ritmok-velocidade', String(r)); } catch (e) { }
+      mostrarVelocidade();
+    }
+
+    function mostrarControleVelocidade() {
+      const wrap = qs('#velo-wrap');
+      if (wrap) wrap.hidden = false;
+    }
+
+    // anda um passo sem estourar os limites (antes de 0,5x voltava para 1x)
+    function moverVelocidade(passo) {
+      const i = indiceDaVelocidade(state.velocidade) + passo;
+      const seguro = Math.min(VELOS.length - 1, Math.max(0, i));
+      aplicarVelocidade(VELOS[seguro]);
+    }
+
+    qs('#btn-velo-menos').onclick = () => moverVelocidade(-1);
+    qs('#btn-velo-mais').onclick = () => moverVelocidade(1);
+    qs('#btn-velo').onclick = () => {
+      // um toque sobe um passo; chegando em 2x volta para o normal
+      const atual = indiceDaVelocidade(state.velocidade);
+      aplicarVelocidade(atual >= VELOS.length - 1 ? 1 : VELOS[atual + 1]);
+    };
+
+    // a preferencia volta em cada aula
+    try {
+      const salva = localStorage.getItem('ritmok-velocidade');
+      if (salva) state.velocidade = normalizarVelocidade(Number(salva));
+    } catch (e) { }
+    mostrarVelocidade();
+    mostrarControleVelocidade();
 
     const sidebar = qs('#ep-sidebar');
     qs('#btn-list').onclick = () => {
