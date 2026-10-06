@@ -117,6 +117,29 @@ const UI = (() => {
       + (start > 0 ? `&start=${start}` : '');
   }
 
+  /* ---------- video: esconder as opcoes de baixar ---------- */
+
+  /* Nao da para travar o arquivo, mas da para tirar os atalhos de um
+     toque: botao do controle nativo, clique direito e toque longo --
+     que e como o celular oferece "Salvar video". */
+  function travarDownload(video) {
+    if (!video) return;
+    try {
+      video.addEventListener('contextmenu', e => e.preventDefault());
+      video.addEventListener('dragstart', e => e.preventDefault());
+      video.addEventListener('dblclick', e => e.preventDefault());
+      if (video.disableRemotePlayback !== undefined) video.disableRemotePlayback = true;
+      video.setAttribute('disablepictureinpicture', '');
+      video.setAttribute('controlslist', 'nodownload noplaybackrate');
+
+      // iPhone: o toque longo e controlado pelo proprio Safari e o
+      // preventDefault chega atras. Este marcador desliga o "callout".
+      video.style.webkitTouchCallout = 'none';
+      video.style.webkitUserSelect = 'none';
+      video.style.userSelect = 'none';
+    } catch (e) { }
+  }
+
   /* ---------- Toast ---------- */
   let toastWrap = null;
   function toast(msg, kind = '') {
@@ -239,5 +262,5 @@ const UI = (() => {
     }, { passive: true });
   }
 
-  return { qs, qsa, el, esc, slug, uid, timecode, dateBR, dateTimeBR, addDays, isExpired, youtubeId, videoType, embedUrl, toast, confirmBox, icons, logo, renderNavbar };
+  return { qs, qsa, el, esc, slug, uid, timecode, dateBR, dateTimeBR, addDays, isExpired, youtubeId, videoType, embedUrl, travarDownload, toast, confirmBox, icons, logo, renderNavbar };
 })();

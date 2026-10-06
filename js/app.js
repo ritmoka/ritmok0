@@ -153,6 +153,7 @@
         autoplay: true, playsinline: true, preload: 'metadata', src: url,
         poster: Art.wide(curso.id + 'demo', curso.title)
       });
+      UI.travarDownload(v);   // tira o toque longo de "salvar video"
       v.addEventListener('error', () => {
         midia.innerHTML = '';
         midia.appendChild(el('div', { class: 'stage-fallback' }, [
